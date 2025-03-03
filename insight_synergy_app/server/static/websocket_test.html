@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #log { 
+            border: 1px solid #ccc; 
+            padding: 10px; 
+            height: 300px; 
+            overflow-y: auto; 
+            margin: 10px 0;
+            background: #f9f9f9;
+        }
+        .error { color: red; }
+        .success { color: green; }
+        .info { color: blue; }
+        .debug { color: #666; }
+        .warning { color: orange; }
+        
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            background-color: #f1f1f1;
+            margin-bottom: 10px;
+        }
+        .authenticated { background-color: #d4ffd4; }
+        .anonymous { background-color: #fff3d4; }
+        
+        .controls { margin: 10px 0; }
+        input[type="text"] {
+            padding: 6px;
+            width: 300px;
+        }
+        button {
+            padding: 6px 12px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover { background-color: #45a049; }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <h2>WebSocket Test mit Token-Authentifizierung</h2>
+    
+    <div class="controls">
+        <label for="tokenInput">JWT Token:</label>
+        <input type="text" id="tokenInput" placeholder="JWT Token eingeben">
+        <button onclick="refreshToken()">Test-Token abrufen</button>
+    </div>
+    
+    <div class="status" id="connectionStatus">Nicht verbunden</div>
+    
+    <div class="controls">
+        <button onclick="connect()" id="connectBtn">Verbinden</button>
+        <button onclick="disconnect()" id="disconnectBtn" disabled>Trennen</button>
+        <button onclick="sendPing()" id="pingBtn" disabled>Ping senden</button>
+    </div>
+    
+    <div class="controls">
+        <input type="text" id="messageInput" placeholder="Nachricht eingeben">
+        <button onclick="sendMessage()" id="sendBtn" disabled>Senden</button>
+    </div>
+    
+    <div id="log"></div>
+
+    <script>
+        let ws = null;
+        const log = document.getElementById('log');
+        const tokenInput = document.getElementById('tokenInput');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const pingBtn = document.getElementById('pingBtn');
+        const sendBtn = document.getElementById('sendBtn');
+        const connectionStatus = document.getElementById('connectionStatus');
+
+        function addToLog(message, type = 'info') {
+            const time = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = `${time}: ${message}`;
+            log.appendChild(div);
+            log.scrollTop = log.scrollHeight;
+            
+            // Bei Fehlern auch in die Konsole loggen
+            if (type === 'error') {
+                console.error(message);
+            } else if (type === 'debug') {
+                console.debug(message);
+            }
+        }
+        
+        function updateUIState(connected, authenticated = false) {
+            connectBtn.disabled = connected;
+            disconnectBtn.disabled = !connected;
+            pingBtn.disabled = !connected;
+            sendBtn.disabled = !connected;
+            
+            if (connected) {
+                connectionStatus.textContent = authenticated ? 
+                    "Verbunden (authentifiziert)" : "Verbunden (anonym)";
+                connectionStatus.className = "status " + (authenticated ? "authenticated" : "anonymous");
+            } else {
+                connectionStatus.textContent = "Nicht verbunden";
+                connectionStatus.className = "status";
+            }
+        }
+        
+        async function refreshToken() {
+            try {
+                addToLog("Rufe Test-Token ab...", "debug");
+                const response = await fetch('http://localhost:8095/api/token/test');
+                if (!response.ok) {
+                    throw new Error(`HTTP-Fehler: ${response.status}`);
+                }
+                const data = await response.json();
+                tokenInput.value = data.access_token;
+                addToLog(`Neuer Token abgerufen für Benutzer: ${data.username}`, "success");
+                return data.access_token;
+            } catch (error) {
+                addToLog(`Fehler beim Abrufen des Test-Tokens: ${error.message}`, "error");
+                return null;
+            }
+        }
+
+        function connect() {
+            if (ws) {
+                addToLog('Bereits verbunden!', 'error');
+                return;
+            }
+
+            const token = tokenInput.value.trim();
+            const url = token ? 
+                `ws://localhost:8095/api/ws?token=${encodeURIComponent(token)}` : 
+                'ws://localhost:8095/api/ws';
+                
+            addToLog(`Verbinde mit ${url}...`, 'debug');
+            
+            try {
+                ws = new WebSocket(url);
+                
+                ws.onopen = () => {
+                    addToLog('Verbindung hergestellt!', 'success');
+                    addToLog(`Protokoll: ${ws.protocol || 'none'}`, 'debug');
+                };
+
+                ws.onmessage = (event) => {
+                    addToLog(`Empfangen: ${event.data}`, 'info');
+                    try {
+                        const data = JSON.parse(event.data);
+                        addToLog(`Parsed: ${JSON.stringify(data, null, 2)}`, 'debug');
+                        
+                        // Verbindungsstatus aktualisieren
+                        if (data.type === "connection_established") {
+                            updateUIState(true, data.authenticated);
+                        }
+                        
+                        // Fehler behandeln
+                        if (data.type === "error") {
+                            addToLog(`Fehler vom Server: ${data.message}`, 'error');
+                        }
+                    } catch (e) {
+                        // Wenn keine JSON-Nachricht, zeige einfach den Text
+                    }
+                };
+
+                ws.onclose = (event) => {
+                    const reason = event.reason ? ` (${event.reason})` : '';
+                    addToLog(`Verbindung geschlossen (Code: ${event.code})${reason}`, event.code === 1000 ? 'info' : 'error');
+                    ws = null;
+                    updateUIState(false);
+                };
+
+                ws.onerror = (error) => {
+                    addToLog('WebSocket Fehler!', 'error');
+                    console.error('WebSocket Fehler:', error);
+                };
+            } catch (error) {
+                addToLog(`Fehler beim Verbindungsaufbau: ${error.message}`, 'error');
+                ws = null;
+                updateUIState(false);
+            }
+        }
+
+        function disconnect() {
+            if (!ws) {
+                addToLog('Keine aktive Verbindung!', 'error');
+                return;
+            }
+            ws.close(1000, 'Benutzer hat Verbindung getrennt');
+        }
+
+        function sendPing() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                addToLog('Keine aktive Verbindung!', 'error');
+                return;
+            }
+            const ping = JSON.stringify({ type: 'ping', timestamp: new Date().toISOString() });
+            ws.send(ping);
+            addToLog(`Gesendet: ${ping}`, 'debug');
+        }
+
+        function sendMessage() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                addToLog('Keine aktive Verbindung!', 'error');
+                return;
+            }
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            if (message) {
+                const data = JSON.stringify({ 
+                    type: 'message', 
+                    data: { 
+                        content: message,
+                        timestamp: new Date().toISOString()
+                    } 
+                });
+                ws.send(data);
+                addToLog(`Gesendet: ${data}`, 'debug');
+                input.value = '';
+            }
+        }
+
+        // Enter-Taste im Eingabefeld
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        
+        // Beim Laden der Seite einen Test-Token abrufen
+        document.addEventListener('DOMContentLoaded', refreshToken);
+    </script>
+</body>
+</html> 

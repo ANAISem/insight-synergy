@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus WebSocket Demo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        h1, h2 {
+            color: #2c3e50;
+        }
+        
+        .container {
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .metrics {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        
+        #metricsCpu, #metricsMemory, #metricsConn {
+            font-weight: bold;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        
+        input[type="text"], textarea, input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        
+        .status {
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+        }
+        
+        .status.connected {
+            background-color: #d5f5e3;
+            color: #27ae60;
+        }
+        
+        .status.disconnected {
+            background-color: #f5d5d5;
+            color: #c0392b;
+        }
+        
+        .status.pending {
+            background-color: #fcf3cf;
+            color: #f39c12;
+        }
+        
+        .status.reconnecting {
+            background-color: #ebf5fb;
+            color: #3498db;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        #answerContainer {
+            margin-top: 20px;
+            min-height: 100px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            white-space: pre-wrap;
+        }
+        
+        #citations {
+            margin-top: 15px;
+            font-size: 14px;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+        }
+        
+        .citation {
+            background-color: #ebf5fb;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            border-left: 3px solid #3498db;
+        }
+        
+        .log {
+            margin-top: 20px;
+            height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            background-color: #222;
+            color: #ddd;
+            font-family: monospace;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+        }
+        
+        .log-entry.error {
+            color: #e74c3c;
+        }
+        
+        .log-entry.success {
+            color: #2ecc71;
+        }
+        
+        .log-entry.info {
+            color: #3498db;
+        }
+        
+        .log-entry.warning {
+            color: #f39c12;
+        }
+        
+        .cache-info {
+            background-color: #f8f9fa;
+            border-left: 3px solid #17a2b8;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        .settings-panel {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .settings-toggle {
+            cursor: pointer;
+            font-weight: 600;
+            color: #2c3e50;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .settings-content {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Nexus WebSocket Demo</h1>
+    
+    <!-- Erweiterte Einstellungen -->
+    <div class="settings-panel">
+        <div class="settings-toggle" id="settingsToggle">
+            Erweiterte Einstellungen
+            <span>▼</span>
+        </div>
+        <div class="settings-content" id="settingsContent" style="display: none;">
+            <div class="form-group">
+                <label for="apiKeyInput">API-Schlüssel:</label>
+                <input type="password" id="apiKeyInput" placeholder="API-Schlüssel für authentifizierte Verbindungen" />
+            </div>
+            
+            <div class="checkbox-group">
+                <input type="checkbox" id="autoReconnectCheckbox" checked>
+                <label for="autoReconnectCheckbox">Automatische Wiederverbindung</label>
+            </div>
+            
+            <div class="form-group">
+                <label for="reconnectAttemptsInput">Max. Wiederverbindungsversuche:</label>
+                <input type="text" id="reconnectAttemptsInput" value="5" />
+            </div>
+            
+            <div class="form-group">
+                <label for="heartbeatIntervalInput">Heartbeat-Intervall (ms):</label>
+                <input type="text" id="heartbeatIntervalInput" value="30000" />
+            </div>
+            
+            <button id="clearCacheBtn">Cache leeren</button>
+        </div>
+    </div>
+    
+    <!-- Systemmetriken -->
+    <div class="container">
+        <h2>Systemmetriken</h2>
+        <div class="metrics">
+            <div>CPU-Auslastung: <span id="metricsCpu">0%</span></div>
+            <div>Speicherverbrauch: <span id="metricsMemory">0%</span></div>
+            <div>Aktive Verbindungen: <span id="metricsConn">0</span></div>
+        </div>
+        <div class="status disconnected" id="metricsStatus">Nicht verbunden</div>
+        <button id="connectMetricsBtn">Verbinden</button>
+    </div>
+    
+    <!-- Wissensabfrage -->
+    <div class="container">
+        <h2>RAG mit WebSocket-Streaming</h2>
+        <div class="status disconnected" id="knowledgeStatus">Nicht verbunden</div>
+        
+        <div class="form-group">
+            <label for="queryInput">Deine Frage:</label>
+            <input type="text" id="queryInput" placeholder="z.B. Was ist die Hauptstadt von Deutschland?" />
+        </div>
+        
+        <div class="form-group">
+            <label for="maxDocsInput">Max. Kontextdokumente:</label>
+            <input type="text" id="maxDocsInput" value="5" />
+        </div>
+        
+        <button id="connectKnowledgeBtn">Verbinden</button>
+        <button id="sendQueryBtn" disabled>Frage senden</button>
+        
+        <div id="answerContainer">Die Antwort erscheint hier...</div>
+        
+        <div id="citations"></div>
+        
+        <div id="cacheInfo" class="cache-info" style="display: none;"></div>
+    </div>
+    
+    <!-- Log-Bereich -->
+    <div class="container">
+        <h2>WebSocket Log</h2>
+        <div class="log" id="logContainer"></div>
+        <button id="clearLogBtn">Log löschen</button>
+    </div>
+    
+    <script>
+        // Status-Elemente
+        const metricsStatus = document.getElementById('metricsStatus');
+        const knowledgeStatus = document.getElementById('knowledgeStatus');
+        
+        // Metriken-Elemente
+        const metricsCpu = document.getElementById('metricsCpu');
+        const metricsMemory = document.getElementById('metricsMemory');
+        const metricsConn = document.getElementById('metricsConn');
+        
+        // Eingabe-Elemente
+        const queryInput = document.getElementById('queryInput');
+        const maxDocsInput = document.getElementById('maxDocsInput');
+        const answerContainer = document.getElementById('answerContainer');
+        const citationsContainer = document.getElementById('citations');
+        const cacheInfoContainer = document.getElementById('cacheInfo');
+        
+        // Einstellungs-Elemente
+        const apiKeyInput = document.getElementById('apiKeyInput');
+        const autoReconnectCheckbox = document.getElementById('autoReconnectCheckbox');
+        const reconnectAttemptsInput = document.getElementById('reconnectAttemptsInput');
+        const heartbeatIntervalInput = document.getElementById('heartbeatIntervalInput');
+        const settingsToggle = document.getElementById('settingsToggle');
+        const settingsContent = document.getElementById('settingsContent');
+        
+        // Buttons
+        const connectMetricsBtn = document.getElementById('connectMetricsBtn');
+        const connectKnowledgeBtn = document.getElementById('connectKnowledgeBtn');
+        const sendQueryBtn = document.getElementById('sendQueryBtn');
+        const clearLogBtn = document.getElementById('clearLogBtn');
+        const clearCacheBtn = document.getElementById('clearCacheBtn');
+        
+        // Log-Container
+        const logContainer = document.getElementById('logContainer');
+        
+        // WebSocket-Verbindungen
+        let metricsSocket = null;
+        let knowledgeSocket = null;
+        
+        // Aktueller Antworttext für Streaming
+        let currentAnswer = "";
+        
+        // Wiederverbindungs-Variablen
+        let metricsReconnectAttempts = 0;
+        let knowledgeReconnectAttempts = 0;
+        let maxReconnectAttempts = 5;
+        let metricsReconnectTimeout = null;
+        let knowledgeReconnectTimeout = null;
+        
+        // Heartbeat-Intervall-IDs
+        let metricsHeartbeatInterval = null;
+        let knowledgeHeartbeatInterval = null;
+        
+        // Einstellungen umschalten
+        settingsToggle.addEventListener('click', () => {
+            if (settingsContent.style.display === 'none') {
+                settingsContent.style.display = 'block';
+                settingsToggle.querySelector('span').textContent = '▲';
+            } else {
+                settingsContent.style.display = 'none';
+                settingsToggle.querySelector('span').textContent = '▼';
+            }
+        });
+        
+        // WebSocket-Basis-URL ableiten
+        function getWebSocketBaseUrl() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.host;
+            
+            // API-Pfad zur Basis-URL hinzufügen
+            return `${protocol}//${host}/api`;
+        }
+        
+        // Log-Eintrag hinzufügen
+        function addLogEntry(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toISOString()}] ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        // Log löschen
+        clearLogBtn.addEventListener('click', () => {
+            logContainer.innerHTML = '';
+            addLogEntry('Log gelöscht');
+        });
+        
+        // Cache leeren
+        clearCacheBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/cache/clear', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': apiKeyInput.value
+                    }
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    addLogEntry(`Cache gelöscht: ${result.message}`, 'success');
+                    cacheInfoContainer.style.display = 'none';
+                } else {
+                    addLogEntry('Fehler beim Löschen des Caches', 'error');
+                }
+            } catch (error) {
+                addLogEntry(`Fehler beim Löschen des Caches: ${error.message}`, 'error');
+            }
+        });
+        
+        // Heartbeat senden
+        function sendHeartbeat(socket, socketName) {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                try {
+                    socket.send(JSON.stringify({
+                        type: 'heartbeat',
+                        data: {
+                            timestamp: Date.now()
+                        }
+                    }));
+                    addLogEntry(`Heartbeat an ${socketName} gesendet`, 'info');
+                } catch (error) {
+                    addLogEntry(`Fehler beim Senden des Heartbeats an ${socketName}: ${error.message}`, 'error');
+                }
+            }
+        }
+        
+        // Automatische Wiederverbindung starten
+        function startReconnect(socketType) {
+            if (!autoReconnectCheckbox.checked) {
+                addLogEntry(`Automatische Wiederverbindung deaktiviert für ${socketType}`, 'warning');
+                return;
+            }
+            
+            maxReconnectAttempts = parseInt(reconnectAttemptsInput.value) || 5;
+            
+            if (socketType === 'metrics') {
+                if (metricsReconnectAttempts >= maxReconnectAttempts) {
+                    addLogEntry(`Maximale Anzahl an Wiederverbindungsversuchen (${maxReconnectAttempts}) für Metriken erreicht`, 'error');
+                    metricsStatus.className = 'status disconnected';
+                    metricsStatus.textContent = 'Verbindung fehlgeschlagen';
+                    connectMetricsBtn.textContent = 'Verbinden';
+                    return;
+                }
+                
+                metricsStatus.className = 'status reconnecting';
+                metricsStatus.textContent = `Wiederverbindung wird hergestellt... (${metricsReconnectAttempts + 1}/${maxReconnectAttempts})`;
+                
+                metricsReconnectTimeout = setTimeout(() => {
+                    metricsReconnectAttempts++;
+                    addLogEntry(`Wiederverbindungsversuch für Metriken: ${metricsReconnectAttempts}/${maxReconnectAttempts}`, 'info');
+                    connectMetricsSocket();
+                }, 2000 * Math.pow(1.5, metricsReconnectAttempts)); // Exponentielles Backoff
+            } else if (socketType === 'knowledge') {
+                if (knowledgeReconnectAttempts >= maxReconnectAttempts) {
+                    addLogEntry(`Maximale Anzahl an Wiederverbindungsversuchen (${maxReconnectAttempts}) für Knowledge erreicht`, 'error');
+                    knowledgeStatus.className = 'status disconnected';
+                    knowledgeStatus.textContent = 'Verbindung fehlgeschlagen';
+                    connectKnowledgeBtn.textContent = 'Verbinden';
+                    sendQueryBtn.disabled = true;
+                    return;
+                }
+                
+                knowledgeStatus.className = 'status reconnecting';
+                knowledgeStatus.textContent = `Wiederverbindung wird hergestellt... (${knowledgeReconnectAttempts + 1}/${maxReconnectAttempts})`;
+                
+                knowledgeReconnectTimeout = setTimeout(() => {
+                    knowledgeReconnectAttempts++;
+                    addLogEntry(`Wiederverbindungsversuch für Knowledge: ${knowledgeReconnectAttempts}/${maxReconnectAttempts}`, 'info');
+                    connectKnowledgeSocket();
+                }, 2000 * Math.pow(1.5, knowledgeReconnectAttempts)); // Exponentielles Backoff
+            }
+        }
+        
+        // Metriken-WebSocket verbinden
+        function connectMetricsSocket() {
+            if (metricsSocket && metricsSocket.readyState === WebSocket.OPEN) {
+                metricsSocket.close();
+                return;
+            }
+            
+            try {
+                const wsUrl = `${getWebSocketBaseUrl()}/ws/metrics`;
+                metricsSocket = new WebSocket(wsUrl);
+                
+                // API-Key hinzufügen, falls vorhanden
+                const apiKey = apiKeyInput.value.trim();
+                if (apiKey) {
+                    metricsSocket.onopen = () => {
+                        metricsSocket.setRequestHeader("X-API-Key", apiKey);
+                    };
+                }
+                
+                metricsStatus.className = 'status pending';
+                metricsStatus.textContent = 'Verbindung wird hergestellt...';
+                connectMetricsBtn.textContent = 'Trennen';
+                
+                addLogEntry(`Verbinde mit Metriken-WebSocket: ${wsUrl}`);
+                
+                metricsSocket.addEventListener('open', (event) => {
+                    metricsStatus.className = 'status connected';
+                    metricsStatus.textContent = 'Verbunden';
+                    connectMetricsBtn.textContent = 'Trennen';
+                    addLogEntry('Metriken-WebSocket verbunden', 'success');
+                    
+                    // Heartbeat-Intervall starten
+                    const heartbeatInterval = parseInt(heartbeatIntervalInput.value) || 30000;
+                    metricsHeartbeatInterval = setInterval(() => {
+                        sendHeartbeat(metricsSocket, 'Metriken');
+                    }, heartbeatInterval);
+                    
+                    // Wiederverbindungszähler zurücksetzen
+                    metricsReconnectAttempts = 0;
+                    if (metricsReconnectTimeout) {
+                        clearTimeout(metricsReconnectTimeout);
+                        metricsReconnectTimeout = null;
+                    }
+                });
+                
+                metricsSocket.addEventListener('message', (event) => {
+                    try {
+                        const message = JSON.parse(event.data);
+                        
+                        if (message.type === 'metrics_update') {
+                            metricsCpu.textContent = `${message.data.cpu_percent.toFixed(1)}%`;
+                            metricsMemory.textContent = `${message.data.memory_percent.toFixed(1)}%`;
+                            metricsConn.textContent = message.data.active_connections;
+                        } else if (message.type === 'heartbeat_acknowledged') {
+                            addLogEntry('Heartbeat bestätigt', 'info');
+                        } else if (message.type === 'connection_timeout') {
+                            addLogEntry(`Verbindungstimeout: ${message.data.message}`, 'warning');
+                        }
+                    } catch (error) {
+                        addLogEntry(`Fehler beim Verarbeiten der Metriken: ${error.message}`, 'error');
+                    }
+                });
+                
+                metricsSocket.addEventListener('close', (event) => {
+                    metricsStatus.className = 'status disconnected';
+                    metricsStatus.textContent = 'Verbindung getrennt';
+                    connectMetricsBtn.textContent = 'Verbinden';
+                    addLogEntry('Metriken-WebSocket getrennt');
+                    
+                    // Heartbeat-Intervall stoppen
+                    if (metricsHeartbeatInterval) {
+                        clearInterval(metricsHeartbeatInterval);
+                        metricsHeartbeatInterval = null;
+                    }
+                    
+                    // Automatische Wiederverbindung starten
+                    if (event.code !== 1000) {
+                        // Nur bei unerwarteter Trennung wiederverbinden
+                        startReconnect('metrics');
+                    }
+                });
+                
+                metricsSocket.addEventListener('error', (event) => {
+                    metricsStatus.className = 'status disconnected';
+                    metricsStatus.textContent = 'Fehler bei der Verbindung';
+                    connectMetricsBtn.textContent = 'Verbinden';
+                    addLogEntry('Metriken-WebSocket Fehler', 'error');
+                });
+            } catch (error) {
+                addLogEntry(`Fehler beim Erstellen der Metriken-WebSocket-Verbindung: ${error.message}`, 'error');
+            }
+        }
+        
+        // Metriken-WebSocket verbinden (Button-Handler)
+        connectMetricsBtn.addEventListener('click', () => {
+            connectMetricsSocket();
+        });
+        
+        // Knowledge-WebSocket verbinden
+        function connectKnowledgeSocket() {
+            if (knowledgeSocket && knowledgeSocket.readyState === WebSocket.OPEN) {
+                knowledgeSocket.close();
+                return;
+            }
+            
+            try {
+                const wsUrl = `${getWebSocketBaseUrl()}/ws/knowledge`;
+                knowledgeSocket = new WebSocket(wsUrl);
+                
+                // API-Key hinzufügen, falls vorhanden
+                const apiKey = apiKeyInput.value.trim();
+                if (apiKey) {
+                    knowledgeSocket.onopen = () => {
+                        knowledgeSocket.setRequestHeader("X-API-Key", apiKey);
+                    };
+                }
+                
+                knowledgeStatus.className = 'status pending';
+                knowledgeStatus.textContent = 'Verbindung wird hergestellt...';
+                connectKnowledgeBtn.textContent = 'Trennen';
+                
+                addLogEntry(`Verbinde mit Knowledge-WebSocket: ${wsUrl}`);
+                
+                knowledgeSocket.addEventListener('open', (event) => {
+                    knowledgeStatus.className = 'status connected';
+                    knowledgeStatus.textContent = 'Verbunden';
+                    connectKnowledgeBtn.textContent = 'Trennen';
+                    sendQueryBtn.disabled = false;
+                    addLogEntry('Knowledge-WebSocket verbunden', 'success');
+                    
+                    // Heartbeat-Intervall starten
+                    const heartbeatInterval = parseInt(heartbeatIntervalInput.value) || 30000;
+                    knowledgeHeartbeatInterval = setInterval(() => {
+                        sendHeartbeat(knowledgeSocket, 'Knowledge');
+                    }, heartbeatInterval);
+                    
+                    // Wiederverbindungszähler zurücksetzen
+                    knowledgeReconnectAttempts = 0;
+                    if (knowledgeReconnectTimeout) {
+                        clearTimeout(knowledgeReconnectTimeout);
+                        knowledgeReconnectTimeout = null;
+                    }
+                    
+                    // Nach erfolgreicher Verbindung eine Reconnect-Nachricht senden,
+                    // falls wir uns nach einem Fehler wiederverbunden haben
+                    if (knowledgeReconnectAttempts > 0) {
+                        try {
+                            knowledgeSocket.send(JSON.stringify({
+                                type: "reconnect",
+                                data: {
+                                    timestamp: Date.now()
+                                }
+                            }));
+                            addLogEntry("Reconnect-Anfrage gesendet", 'info');
+                        } catch (error) {
+                            addLogEntry(`Fehler beim Senden der Reconnect-Anfrage: ${error.message}`, 'error');
+                        }
+                    }
+                });
+                
+                knowledgeSocket.addEventListener('message', (event) => {
+                    try {
+                        const message = JSON.parse(event.data);
+                        
+                        switch (message.type) {
+                            case 'connection_established':
+                                addLogEntry(`Verbindung hergestellt: ${message.data.message}`);
+                                break;
+                                
+                            case 'reconnect_successful':
+                                addLogEntry(`Wiederverbindung erfolgreich: ${message.data.reconnection_attempts} Versuche`);
+                                if (message.data.last_query_state) {
+                                    addLogEntry(`Letzter Anfragestatus wiederhergestellt: ${message.data.last_query_state.status}`);
+                                }
+                                break;
+                                
+                            case 'query_received':
+                                addLogEntry(`Anfrage empfangen: ${message.data.query}`);
+                                currentAnswer = "";
+                                answerContainer.textContent = "Verarbeite Anfrage...";
+                                citationsContainer.innerHTML = "";
+                                cacheInfoContainer.style.display = 'none';
+                                break;
+                                
+                            case 'context_retrieved':
+                                addLogEntry(`Kontext geladen: ${message.data.message}`);
+                                break;
+                                
+                            case 'token':
+                                // Token zum aktuellen Antworttext hinzufügen
+                                currentAnswer += message.data.token;
+                                answerContainer.textContent = currentAnswer;
+                                break;
+                                
+                            case 'token_final':
+                                // Letztes Token hinzufügen
+                                if (message.data.token) {
+                                    currentAnswer += message.data.token;
+                                    answerContainer.textContent = currentAnswer;
+                                }
+                                break;
+                                
+                            case 'answer_complete':
+                                addLogEntry(`Antwort vollständig (Verarbeitungszeit: ${(message.data.processing_time_ms / 1000).toFixed(2)}s, Konfidenz: ${message.data.confidence.toFixed(2)})`);
+                                
+                                // Cache-Info anzeigen, falls vorhanden
+                                if (message.data.from_cache) {
+                                    cacheInfoContainer.style.display = 'block';
+                                    cacheInfoContainer.innerHTML = `
+                                        <strong>Aus Cache geladen:</strong> Diese Antwort wurde aus dem Cache geladen.<br>
+                                        Originale Generierungszeit: ${(message.data.original_processing_time_ms / 1000).toFixed(2)}s<br>
+                                        Cache-Einsparung: ${(message.data.original_processing_time_ms - message.data.processing_time_ms).toFixed(2)}ms
+                                    `;
+                                    addLogEntry('Antwort aus Cache geladen', 'success');
+                                } else {
+                                    cacheInfoContainer.style.display = 'none';
+                                }
+                                
+                                // Quellenangaben anzeigen
+                                if (message.data.citations && message.data.citations.length > 0) {
+                                    citationsContainer.innerHTML = '<h3>Quellenangaben:</h3>';
+                                    
+                                    message.data.citations.forEach(citation => {
+                                        const citationElement = document.createElement('div');
+                                        citationElement.className = 'citation';
+                                        
+                                        let citationHtml = `<strong>Quelle:</strong> ${citation.source_name || 'Unbekannt'}<br>`;
+                                        citationHtml += `<strong>Auszug:</strong> ${citation.content_snippet}<br>`;
+                                        citationHtml += `<strong>Relevanz:</strong> ${citation.relevance_score.toFixed(2)}`;
+                                        
+                                        citationElement.innerHTML = citationHtml;
+                                        citationsContainer.appendChild(citationElement);
+                                    });
+                                }
+                                break;
+                                
+                            case 'heartbeat_acknowledged':
+                                addLogEntry('Heartbeat bestätigt', 'info');
+                                break;
+                                
+                            case 'connection_timeout':
+                                addLogEntry(`Verbindungstimeout: ${message.data.message}`, 'warning');
+                                break;
+                                
+                            case 'error':
+                                addLogEntry(`WebSocket-Fehler: ${message.data.message}`, 'error');
+                                answerContainer.textContent = `Fehler: ${message.data.message}`;
+                                
+                                // Automatische Wiederverbindung bei bestimmten Fehlertypen
+                                if (message.data.recoverable && autoReconnectCheckbox.checked) {
+                                    const retryAfterMs = message.data.retry_after_ms || 2000;
+                                    addLogEntry(`Automatische Wiederverbindung in ${retryAfterMs}ms...`, 'info');
+                                    
+                                    setTimeout(() => {
+                                        if (knowledgeSocket.readyState !== WebSocket.OPEN) {
+                                            connectKnowledgeSocket();
+                                        }
+                                    }, retryAfterMs);
+                                }
+                                break;
+                                
+                            default:
+                                addLogEntry(`Unbekannter Nachrichtentyp: ${message.type}`);
+                        }
+                    } catch (error) {
+                        addLogEntry(`Fehler beim Verarbeiten der Nachricht: ${error.message}`, 'error');
+                    }
+                });
+                
+                knowledgeSocket.addEventListener('close', (event) => {
+                    knowledgeStatus.className = 'status disconnected';
+                    knowledgeStatus.textContent = 'Verbindung getrennt';
+                    connectKnowledgeBtn.textContent = 'Verbinden';
+                    sendQueryBtn.disabled = true;
+                    addLogEntry('Knowledge-WebSocket getrennt');
+                    
+                    // Heartbeat-Intervall stoppen
+                    if (knowledgeHeartbeatInterval) {
+                        clearInterval(knowledgeHeartbeatInterval);
+                        knowledgeHeartbeatInterval = null;
+                    }
+                    
+                    // Automatische Wiederverbindung starten
+                    if (event.code !== 1000) {
+                        // Nur bei unerwarteter Trennung wiederverbinden
+                        startReconnect('knowledge');
+                    }
+                });
+                
+                knowledgeSocket.addEventListener('error', (event) => {
+                    knowledgeStatus.className = 'status disconnected';
+                    knowledgeStatus.textContent = 'Fehler bei der Verbindung';
+                    connectKnowledgeBtn.textContent = 'Verbinden';
+                    sendQueryBtn.disabled = true;
+                    addLogEntry('Knowledge-WebSocket Fehler', 'error');
+                });
+            } catch (error) {
+                addLogEntry(`Fehler beim Erstellen der Knowledge-WebSocket-Verbindung: ${error.message}`, 'error');
+            }
+        }
+        
+        // Knowledge-WebSocket verbinden (Button-Handler)
+        connectKnowledgeBtn.addEventListener('click', () => {
+            connectKnowledgeSocket();
+        });
+        
+        // Anfrage senden
+        sendQueryBtn.addEventListener('click', () => {
+            if (!knowledgeSocket || knowledgeSocket.readyState !== WebSocket.OPEN) {
+                addLogEntry('Keine Verbindung zum Knowledge-WebSocket', 'error');
+                return;
+            }
+            
+            const query = queryInput.value.trim();
+            if (!query) {
+                addLogEntry('Bitte gib eine Frage ein', 'error');
+                return;
+            }
+            
+            const maxDocs = parseInt(maxDocsInput.value) || 5;
+            
+            const queryData = {
+                type: "query",
+                data: {
+                    query: query,
+                    max_context_docs: maxDocs
+                }
+            };
+            
+            try {
+                knowledgeSocket.send(JSON.stringify(queryData));
+                addLogEntry(`Frage gesendet: "${query}" (max. ${maxDocs} Dokumente)`);
+            } catch (error) {
+                addLogEntry(`Fehler beim Senden der Frage: ${error.message}`, 'error');
+            }
+        });
+        
+        // Initial Log-Eintrag
+        addLogEntry('WebSocket-Demo geladen. Bitte verbinde dich mit den Diensten.');
+    </script>
+</body>
+</html> 

@@ -1,0 +1,41 @@
+# API und Webserver
+fastapi>=0.103.0
+uvicorn>=0.23.2
+pydantic>=2.3.0
+pydantic-settings>=2.0.3
+python-dotenv>=1.0.0
+python-multipart>=0.0.6
+aiofiles>=23.1.0
+websockets>=11.0.3
+
+# Vektordatenbank und Embeddings
+chromadb>=0.4.18
+sentence-transformers>=2.2.2
+hnswlib>=0.7.0
+torch>=2.0.1
+
+# LLM-Integration
+langchain>=0.0.270
+langchain-community>=0.0.1
+openai>=1.3.0
+huggingface-hub>=0.16.4
+transformers>=4.33.1
+tiktoken>=0.5.1
+
+# Datenverarbeitung
+numpy>=1.24.4
+pandas>=2.1.0
+pyarrow>=13.0.0
+
+# Logging und Monitoring
+psutil>=5.9.5
+structlog>=23.1.0
+
+# Textverarbeitung und NLP
+nltk>=3.8.1
+spacy>=3.6.1
+scikit-learn>=1.3.0
+
+# Hilfsbibliotheken
+tqdm>=4.66.1
+tenacity>=8.2.3 

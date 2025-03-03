@@ -1,0 +1,103 @@
+# Allgemeine Dateien
+.DS_Store
+*.log
+logs/
+tmp/
+temp/
+
+# Python-spezifische Dateien
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+.env
+.python-version
+
+# Flutter/Dart-spezifische Dateien
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+**/ios/Flutter/.last_build_id
+.flutter-cache/
+*.iml
+*.ipr
+*.iws
+.idea/
+.vscode/
+*.sln
+*.suo
+*.xcconfig
+*.xcworkspace
+**/ios/.symlinks/
+**/ios/Pods/
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/flutter_assets/
+**/ios/.generated/
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.java
+**/android/key.properties
+**/android/app/debug
+**/android/app/profile
+**/android/app/release
+**/android/gradle-wrapper.jar
+**/android/.gradle
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/gradle/
+**/.gradle/
+**/build/
+**/.dart_tool/
+**/pubspec.lock
+**/pubspec.yaml.lock
+
+# Ollama-Modelle (sehr groß)
+ollama_models/blobs/
+ollama_models/manifests/
+
+# IDE-spezifische Dateien
+.idea/
+*.swp
+*.swo
+.vscode/
+
+# Betriebssystem-spezifische Dateien
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Node.js-spezifische Dateien (falls vorhanden)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Docker-spezifische Dateien (falls vorhanden)
+.docker/
+
+# Eingebettetes Git-Repository
+IS-Claude37/ 

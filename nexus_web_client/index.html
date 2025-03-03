@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Insight Synergy | Nexus</title>
+    <style>
+        :root {
+            --primary-color: #2a6dd2;
+            --secondary-color: #107c43;
+            --background-color: #f9f9f9;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --border-color: #e0e0e0;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 1rem;
+            box-shadow: var(--shadow);
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        .nav-links a:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        main {
+            padding: 20px;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .card-header {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: var(--primary-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-container {
+            height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 10px;
+            background-color: #f7f7f7;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        .message {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+        }
+
+        .user-message {
+            background-color: #d1e7ff;
+            margin-left: 20px;
+        }
+
+        .ai-message {
+            background-color: #e6f9e6;
+            margin-right: 20px;
+        }
+
+        .input-area {
+            display: flex;
+            gap: 10px;
+        }
+
+        input, button, textarea, select {
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+
+        input, textarea {
+            width: 100%;
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #1d5bb7;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #ccc;
+        }
+
+        .status-dot.online {
+            background-color: #00c853;
+        }
+
+        .status-dot.offline {
+            background-color: #d32f2f;
+        }
+
+        .knowledge-item {
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        .knowledge-title {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 5px;
+        }
+
+        .tag {
+            background-color: #e0e0e0;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">Insight Synergy</div>
+            <div class="nav-links">
+                <a href="#" id="nav-search">Suche</a>
+                <a href="#" id="nav-cognitive">Kognitive KI</a>
+                <a href="#" id="nav-knowledge">Wissensbasis</a>
+                <a href="#" id="nav-system">Systemstatus</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container">
+        <div class="dashboard">
+            <!-- Suche -->
+            <div class="card" id="search-section">
+                <div class="card-header">
+                    <span>Semantische Suche</span>
+                </div>
+                <div>
+                    <div class="input-area">
+                        <input type="text" id="search-input" placeholder="Nach Wissen suchen...">
+                        <button id="search-button">Suchen</button>
+                    </div>
+                    <div id="search-results" class="results-container">
+                        <!-- Suchergebnisse werden hier angezeigt -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kognitive KI -->
+            <div class="card" id="cognitive-section">
+                <div class="card-header">
+                    <span>Mistral KI-Assistent</span>
+                </div>
+                <div class="chat-container">
+                    <div class="chat-messages" id="chat-messages">
+                        <!-- Chat-Nachrichten werden hier angezeigt -->
+                    </div>
+                    <div class="input-area">
+                        <input type="text" id="chat-input" placeholder="Frage stellen...">
+                        <button id="send-button">Senden</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Wissensbasis -->
+            <div class="card" id="knowledge-section">
+                <div class="card-header">
+                    <span>Wissensdatenbank</span>
+                </div>
+                <div>
+                    <div class="input-area">
+                        <textarea id="knowledge-input" placeholder="Neues Wissen hinzufügen..." rows="3"></textarea>
+                    </div>
+                    <div class="input-area" style="margin-top: 10px;">
+                        <input type="text" id="knowledge-title" placeholder="Titel">
+                        <input type="text" id="knowledge-tags" placeholder="Tags (kommagetrennt)">
+                        <button id="add-knowledge-button">Hinzufügen</button>
+                    </div>
+                    <div id="knowledge-list">
+                        <!-- Wissenselemente werden hier angezeigt -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Systemstatus -->
+            <div class="card" id="system-section">
+                <div class="card-header">
+                    <span>Systemstatus</span>
+                </div>
+                <div>
+                    <div class="status-indicator">
+                        <div class="status-dot" id="backend-status"></div>
+                        <span>Backend API</span>
+                    </div>
+                    <div class="status-indicator">
+                        <div class="status-dot" id="mistral-status"></div>
+                        <span>Mistral KI</span>
+                    </div>
+                    <div class="status-indicator">
+                        <div class="status-dot" id="database-status"></div>
+                        <span>Datenbank</span>
+                    </div>
+                    <div id="system-info" style="margin-top: 20px;">
+                        <!-- Systeminformationen werden hier angezeigt -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:8000';
+        
+        // Status der Dienste überprüfen
+        async function checkSystemStatus() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/status`);
+                const data = await response.json();
+                
+                document.getElementById('backend-status').className = 'status-dot online';
+                document.getElementById('mistral-status').className = data.mistral_status === 'online' ? 'status-dot online' : 'status-dot offline';
+                document.getElementById('database-status').className = data.database_status === 'online' ? 'status-dot online' : 'status-dot offline';
+                
+                // Systeminfo anzeigen
+                document.getElementById('system-info').innerHTML = `
+                    <p><strong>API Version:</strong> ${data.version}</p>
+                    <p><strong>Uptime:</strong> ${data.uptime}</p>
+                    <p><strong>Verfügbare Modelle:</strong> ${data.available_models.join(', ')}</p>
+                `;
+            } catch (error) {
+                document.getElementById('backend-status').className = 'status-dot offline';
+                document.getElementById('mistral-status').className = 'status-dot offline';
+                document.getElementById('database-status').className = 'status-dot offline';
+                document.getElementById('system-info').innerHTML = '<p>Fehler beim Verbinden mit dem Backend-Server.</p>';
+                console.error('Status Error:', error);
+            }
+        }
+        
+        // Chat-Nachricht senden
+        document.getElementById('send-button').addEventListener('click', async () => {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message) return;
+            
+            // Nachricht in den Chat einfügen
+            const chatMessages = document.getElementById('chat-messages');
+            chatMessages.innerHTML += `<div class="message user-message">${message}</div>`;
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            input.value = '';
+            
+            // Anfrage an das Backend senden
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: [{ role: 'user', content: message }],
+                        temperature: 0.7,
+                        max_tokens: 2000
+                    })
+                });
+                
+                const data = await response.json();
+                
+                // Antwort anzeigen
+                chatMessages.innerHTML += `<div class="message ai-message">${data.response}</div>`;
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            } catch (error) {
+                chatMessages.innerHTML += `<div class="message ai-message">Entschuldigung, ich konnte keine Antwort vom Server erhalten. Bitte versuche es später noch einmal.</div>`;
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                console.error('Chat Error:', error);
+            }
+        });
+        
+        // Wissensbasis durchsuchen
+        document.getElementById('search-button').addEventListener('click', async () => {
+            const query = document.getElementById('search-input').value.trim();
+            if (!query) return;
+            
+            const resultsContainer = document.getElementById('search-results');
+            resultsContainer.innerHTML = '<p>Suche läuft...</p>';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/knowledge/search`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query: query,
+                        max_results: 10
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.results && data.results.length > 0) {
+                    resultsContainer.innerHTML = '';
+                    data.results.forEach(item => {
+                        resultsContainer.innerHTML += `
+                            <div class="knowledge-item">
+                                <div class="knowledge-title">${item.title}</div>
+                                <div>${item.content_preview}</div>
+                                <div class="tags">
+                                    ${item.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    resultsContainer.innerHTML = '<p>Keine Ergebnisse gefunden.</p>';
+                }
+            } catch (error) {
+                resultsContainer.innerHTML = '<p>Fehler bei der Suche.</p>';
+                console.error('Search Error:', error);
+            }
+        });
+        
+        // Wissen hinzufügen
+        document.getElementById('add-knowledge-button').addEventListener('click', async () => {
+            const content = document.getElementById('knowledge-input').value.trim();
+            const title = document.getElementById('knowledge-title').value.trim();
+            const tagsText = document.getElementById('knowledge-tags').value.trim();
+            const tags = tagsText ? tagsText.split(',').map(tag => tag.trim()) : [];
+            
+            if (!content || !title) {
+                alert('Bitte Titel und Inhalt angeben.');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/knowledge`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        title: title,
+                        content: content,
+                        tags: tags
+                    })
+                });
+                
+                const data = await response.json();
+                
+                // Formular zurücksetzen
+                document.getElementById('knowledge-input').value = '';
+                document.getElementById('knowledge-title').value = '';
+                document.getElementById('knowledge-tags').value = '';
+                
+                // Erfolg anzeigen
+                alert('Wissen erfolgreich hinzugefügt!');
+                
+                // Wissensliste aktualisieren
+                loadKnowledgeItems();
+            } catch (error) {
+                alert('Fehler beim Hinzufügen des Wissens.');
+                console.error('Knowledge Add Error:', error);
+            }
+        });
+        
+        // Wissensliste laden
+        async function loadKnowledgeItems() {
+            const knowledgeList = document.getElementById('knowledge-list');
+            knowledgeList.innerHTML = '<p>Lade Wissensbasis...</p>';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/knowledge`);
+                const data = await response.json();
+                
+                if (data.items && data.items.length > 0) {
+                    knowledgeList.innerHTML = '';
+                    data.items.forEach(item => {
+                        knowledgeList.innerHTML += `
+                            <div class="knowledge-item">
+                                <div class="knowledge-title">${item.title}</div>
+                                <div>${item.content_preview}</div>
+                                <div class="tags">
+                                    ${item.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    knowledgeList.innerHTML = '<p>Keine Wissenselemente vorhanden.</p>';
+                }
+            } catch (error) {
+                knowledgeList.innerHTML = '<p>Fehler beim Laden der Wissensbasis.</p>';
+                console.error('Knowledge Load Error:', error);
+            }
+        }
+
+        // Navigation
+        document.getElementById('nav-search').addEventListener('click', (e) => {
+            e.preventDefault();
+            document.querySelectorAll('.card').forEach(card => card.style.display = 'none');
+            document.getElementById('search-section').style.display = 'block';
+        });
+        
+        document.getElementById('nav-cognitive').addEventListener('click', (e) => {
+            e.preventDefault();
+            document.querySelectorAll('.card').forEach(card => card.style.display = 'none');
+            document.getElementById('cognitive-section').style.display = 'block';
+        });
+        
+        document.getElementById('nav-knowledge').addEventListener('click', (e) => {
+            e.preventDefault();
+            document.querySelectorAll('.card').forEach(card => card.style.display = 'none');
+            document.getElementById('knowledge-section').style.display = 'block';
+            loadKnowledgeItems();
+        });
+        
+        document.getElementById('nav-system').addEventListener('click', (e) => {
+            e.preventDefault();
+            document.querySelectorAll('.card').forEach(card => card.style.display = 'none');
+            document.getElementById('system-section').style.display = 'block';
+            checkSystemStatus();
+        });
+        
+        // Initialisierung
+        document.addEventListener('DOMContentLoaded', () => {
+            // Alle Sektionen anzeigen bei Start
+            document.querySelectorAll('.card').forEach(card => card.style.display = 'block');
+            
+            // Status überprüfen
+            checkSystemStatus();
+        });
+    </script>
+</body>
+</html> 

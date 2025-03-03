@@ -1,0 +1,46 @@
+# Nexus Backend - Anforderungen
+
+# Grundlegende Frameworks
+fastapi==0.104.1
+uvicorn==0.24.0
+pydantic==2.4.2
+
+# Vektordatenbank
+faiss-cpu>=1.7.4
+chromadb>=0.4.6
+
+# NLP und Embeddings
+sentence-transformers>=2.2.2
+transformers>=4.28.1
+torch>=2.0.0
+langchain>=0.0.267
+langchain-community>=0.0.10
+
+# Dokumentenverarbeitung
+pypdf>=3.8.1
+beautifulsoup4>=4.12.2
+markdown>=3.4.3
+python-docx>=0.8.11
+
+# Datenverarbeitung
+pandas>=2.0.0
+numpy>=1.24.3
+
+# Datenbankintegration
+sqlalchemy==2.0.23
+alembic==1.12.1
+
+# Testing
+pytest==7.4.3
+pytest-asyncio>=0.21.0
+
+# Utility
+tqdm>=4.65.0
+loguru==0.7.2
+python-dotenv==1.0.0
+httpx==0.25.1
+websockets==11.0.3
+requests==2.31.0
+python-jose==3.3.0
+passlib==1.7.4
+bcrypt==4.0.1 
