@@ -1,8 +1,32 @@
 # app/__init__.py
 # Initialisierungsdatei für das app-Modul
 
-# Import von main.py im selben Verzeichnis
-from .main import app
+from fastapi import FastAPI
+import logging
+import os
 
-# Exportiere die app explizit
-__all__ = ['app'] 
+logger = logging.getLogger(__name__)
+
+def create_app() -> FastAPI:
+    """
+    Erstellt und konfiguriert die FastAPI-Anwendung.
+    """
+    app = FastAPI(
+        title="Nexus Backend",
+        description="Backend-API für die Insight Synergy App",
+        version="1.0.0",
+    )
+    
+    # Health-Check-Endpunkt für Verbindungstests
+    @app.get("/health")
+    async def health_check():
+        return {"status": "ok", "version": "1.0.0"}
+    
+    # Registriere weitere Routen
+    from .main import app as main_app
+    app.mount("/api", main_app)
+    
+    # Debug-Info
+    logger.info(f"Anwendung gestartet mit Routen: {app.routes}")
+    
+    return app 

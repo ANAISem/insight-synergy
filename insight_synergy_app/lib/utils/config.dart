@@ -1,7 +1,7 @@
 class AppConfig {
   // API-Konfiguration
-  static const String apiBaseUrl = 'http://localhost:8090/api';
-  static const String wsBaseUrl = 'ws://localhost:8090/ws';
+  static const String apiBaseUrl = 'http://localhost:8001';
+  static const String wsBaseUrl = 'ws://localhost:8001/ws';
   
   // Timeout-Einstellungen
   static const int connectionTimeoutSeconds = 10;

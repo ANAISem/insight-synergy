@@ -8,12 +8,25 @@ import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/splash_screen.dart';
 import 'utils/config.dart';
+import 'utils/dynamic_config.dart';
+import 'dart:developer' as developer;
 
-void main() {
-  // Debug-Informationen ausgeben
-  print('App startet mit folgender Konfiguration:');
-  print('API URL: ${AppConfig.apiBaseUrl}');
-  print('WebSocket URL: ${AppConfig.wsBaseUrl}');
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialisiere die dynamische Konfiguration
+  try {
+    await DynamicConfig.initialize();
+    developer.log('Dynamische Konfiguration initialisiert', name: 'main');
+    developer.log('Verwende API URL: ${DynamicConfig.apiBaseUrl}', name: 'main');
+    developer.log('Verwende WebSocket URL: ${DynamicConfig.wsBaseUrl}', name: 'main');
+  } catch (e) {
+    developer.log('Fehler bei der Initialisierung der dynamischen Konfiguration: $e', 
+      name: 'main', error: e);
+    developer.log('Verwende Standard-Konfiguration', name: 'main');
+    developer.log('API URL: ${AppConfig.apiBaseUrl}', name: 'main');
+    developer.log('WebSocket URL: ${AppConfig.wsBaseUrl}', name: 'main');
+  }
   
   runApp(const MyApp());
 }
@@ -27,8 +40,8 @@ class MyApp extends StatelessWidget {
       providers: [
         Provider<ApiService>(
           create: (_) {
-            final api = ApiService(baseUrl: AppConfig.apiBaseUrl);
-            print('ApiService erstellt mit URL: ${AppConfig.apiBaseUrl}');
+            final api = ApiService(baseUrl: DynamicConfig.apiBaseUrl);
+            developer.log('ApiService erstellt mit URL: ${DynamicConfig.apiBaseUrl}', name: 'main');
             return api;
           },
         ),
@@ -52,17 +65,29 @@ class MyApp extends StatelessWidget {
           return MaterialApp(
             title: 'Insight Synergy',
             theme: ThemeData(
-              colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-              useMaterial3: true,
+              primarySwatch: Colors.blue,
+              visualDensity: VisualDensity.adaptivePlatformDensity,
             ),
-            initialRoute: '/',
+            home: FutureBuilder<bool>(
+              future: authProvider.isLoggedIn(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const SplashScreen();
+                }
+                
+                final isLoggedIn = snapshot.data ?? false;
+                if (isLoggedIn) {
+                  return const ChatScreen();
+                } else {
+                  return const LoginScreen();
+                }
+              },
+            ),
             routes: {
-              '/': (context) => const SplashScreen(),
               '/login': (context) => const LoginScreen(),
               '/register': (context) => const RegisterScreen(),
               '/chat': (context) => const ChatScreen(),
             },
-            debugShowCheckedModeBanner: false,
           );
         },
       ),

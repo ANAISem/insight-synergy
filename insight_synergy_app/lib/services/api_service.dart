@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:developer' as developer;
 
 class ApiResponse<T> {
   final T? data;
@@ -79,7 +80,9 @@ class ApiService {
   final String baseUrl;
   String? _token;
 
-  ApiService({required this.baseUrl});
+  ApiService({required this.baseUrl}) {
+    developer.log('ApiService initialisiert mit URL: $baseUrl', name: 'api_service');
+  }
 
   // Token-Management
   Future<void> setToken(String token) async {
@@ -113,6 +116,43 @@ class ApiService {
     }
 
     return headers;
+  }
+
+  // Hilfsmethode für API-Anfragen mit besserer Fehlerprotokollierung
+  Future<http.Response> _makeRequest(
+    String path, 
+    String method, 
+    {Map<String, String>? headers, Object? body}
+  ) async {
+    final url = Uri.parse('$baseUrl$path');
+    developer.log('API-Anfrage: $method $url', name: 'api_service');
+    
+    try {
+      http.Response response;
+      
+      switch (method) {
+        case 'GET':
+          response = await http.get(url, headers: headers);
+          break;
+        case 'POST':
+          response = await http.post(url, headers: headers, body: body);
+          break;
+        case 'PUT':
+          response = await http.put(url, headers: headers, body: body);
+          break;
+        case 'DELETE':
+          response = await http.delete(url, headers: headers);
+          break;
+        default:
+          throw Exception('Nicht unterstützte HTTP-Methode: $method');
+      }
+      
+      developer.log('API-Antwort: ${response.statusCode} - ${response.body.substring(0, response.body.length > 100 ? 100 : response.body.length)}...', name: 'api_service');
+      return response;
+    } catch (e) {
+      developer.log('API-Fehler: $e', name: 'api_service', error: e);
+      rethrow;
+    }
   }
 
   // Registrierung eines neuen Benutzers
@@ -190,10 +230,7 @@ class ApiService {
     try {
       final headers = await _getHeaders();
       
-      final response = await http.get(
-        Uri.parse('$baseUrl$endpoint'),
-        headers: headers,
-      ).timeout(const Duration(seconds: 10));
+      final response = await _makeRequest(endpoint, 'GET', headers: headers);
 
       return _handleResponse(response, fromJson);
     } catch (e) {
@@ -207,11 +244,7 @@ class ApiService {
     try {
       final headers = await _getHeaders();
       
-      final response = await http.post(
-        Uri.parse('$baseUrl$endpoint'),
-        headers: headers,
-        body: jsonEncode(body),
-      ).timeout(const Duration(seconds: 10));
+      final response = await _makeRequest(endpoint, 'POST', body: jsonEncode(body), headers: headers);
 
       return _handleResponse(response, fromJson);
     } catch (e) {
