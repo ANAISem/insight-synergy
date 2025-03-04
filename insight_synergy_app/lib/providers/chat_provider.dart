@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../models/message_model.dart';
@@ -17,9 +18,13 @@ class ChatProvider with ChangeNotifier {
   String? _error;
   bool _isReconnecting = false;
   int _reconnectAttempts = 0;
-  static const int _maxReconnectAttempts = 3;
+  static const int _maxReconnectAttempts = 5;
   bool _isOfflineMode = false;
   Timer? _pingTimer;
+  int _consecutivePingFailures = 0;
+  String? _serverUrl;
+  StreamSubscription? _pingSubscription;
+  Timer? _reconnectTimer;
 
   // Getter
   List<Message> get messages => _messages;
@@ -58,29 +63,25 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
-  // Nachrichten von der API laden (mit Authentifizierung)
+  // Nachrichten von der API laden (ohne Authentifizierung)
   Future<bool> loadMessagesFromApi() async {
     try {
       _setLoading(true);
-      
-      // Nachrichten über API abrufen
+
       final response = await _apiService.getMessages();
-      
+
       if (response.success && response.data != null) {
-        // Konvertiere API-Nachrichten in unser lokales Modell
         _messages = response.data!.map((apiMessage) => Message(
           id: apiMessage.id,
           content: apiMessage.content,
           sender: apiMessage.type == 'user' ? MessageSender.user : MessageSender.system,
           timestamp: apiMessage.timestamp,
         )).toList();
-        
-        // Nach Zeit sortieren (neueste zuletzt)
+
         _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-        
-        // Nachrichten im Cache speichern
+
         await _cacheMessages();
-        
+
         _setLoading(false);
         _setError(null);
         notifyListeners();
@@ -99,102 +100,101 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
-  // Verbindung zum WebSocket herstellen
+  // Verbindung zum WebSocket herstellen (ohne Authentifizierung)
   Future<void> connectToWebSocket(String url) async {
     try {
       _setLoading(true);
       print('Versuche Verbindung zu WebSocket: $url');
       
-      // Token für WebSocket-Authentifizierung abrufen
-      final token = await _apiService.getToken();
-      
-      if (token != null) {
-        // Token als Query-Parameter hinzufügen
-        final uri = Uri.parse(url).replace(
-          queryParameters: {'token': token},
-        );
-        _channel = WebSocketChannel.connect(uri);
-      } else {
-        _channel = WebSocketChannel.connect(Uri.parse(url));
+      if (!url.startsWith('ws://') && !url.startsWith('wss://')) {
+        Uri uri = Uri.parse(url);
+        String wsScheme = url.startsWith('https://') ? 'wss://' : 'ws://';
+        String host = uri.host;
+        int port = uri.port;
+        String portStr = port > 0 ? ':$port' : '';
+        String path = uri.path.isEmpty ? '/ws' : uri.path;
+        url = '$wsScheme$host$portStr$path';
+        print('Korrigierte WebSocket-URL: $url');
       }
+
+      // Speichere die URL für Wiederverbindungsversuche
+      _serverUrl = url;
       
-      // Prüfe sofort, ob die Verbindung erfolgreich war, indem wir auf den ersten Ping warten
+      print('Verbinde zu WebSocket mit finaler URL: $url');
+      _channel = WebSocketChannel.connect(Uri.parse(url));
+
       bool connectionSuccessful = await _testConnection();
-      
+
       if (!connectionSuccessful) {
         print('WebSocket-Verbindung konnte nicht hergestellt werden: Timeout');
         _setError('WebSocket-Verbindung konnte nicht hergestellt werden: Timeout');
         _isConnected = false;
         _isOfflineMode = true;
         _setLoading(false);
-        // Fallback zur HTTP-API
         await loadMessagesFromApi();
         notifyListeners();
         return;
       }
-      
+
       _isConnected = true;
       _isOfflineMode = false;
       _reconnectAttempts = 0;
-      
-      // Auf eingehende Nachrichten hören
+      _consecutivePingFailures = 0;
+
       _channel!.stream.listen(
         (dynamic data) {
           try {
-            print('Empfangene WebSocket-Daten: $data');
             final jsonData = jsonDecode(data);
             if (jsonData['type'] == 'message') {
               _addMessage(Message.fromJson(jsonData['data']));
-              
-              // Nachrichten im Cache speichern
               _cacheMessages();
             } else if (jsonData['type'] == 'error') {
               _setError(jsonData['message']);
+            } else if (jsonData['type'] == 'heartbeat') {
+              // Heartbeat vom Server empfangen - Verbindung ist aktiv
+              print('Heartbeat vom Server empfangen');
+              _consecutivePingFailures = 0;
+            } else if (jsonData['type'] == 'pong') {
+              // Pong vom Server empfangen - Verbindung ist aktiv
+              print('Pong vom Server empfangen');
+              _consecutivePingFailures = 0;
             }
           } catch (e) {
-            print('Fehler beim Verarbeiten der Nachricht: $e');
             _setError('Fehler beim Verarbeiten der Nachricht: ${e.toString()}');
           }
         },
         onError: (error) {
-          print('WebSocket-Fehler: $error');
           _setError('WebSocket-Fehler: $error');
           _isConnected = false;
           _isOfflineMode = true;
           notifyListeners();
-          _attemptReconnect(url);
+          _attemptReconnect(_serverUrl!);
         },
         onDone: () {
-          print('WebSocket-Verbindung geschlossen');
           _isConnected = false;
           _isOfflineMode = true;
           notifyListeners();
-          _attemptReconnect(url);
+          _attemptReconnect(_serverUrl!);
         },
       );
-      
+
       _setLoading(false);
       _setError(null);
-      
-      // Systemnachricht hinzufügen, wenn erfolgreich verbunden
+
       _addMessage(Message.system('Verbindung zum Server hergestellt'));
-      
-      // Ping-Timer starten, um die Verbindung aufrechtzuerhalten
+
       _startPingTimer();
-      
-      // Ausstehende Nachrichten senden, wenn wir online sind
+
       _syncPendingMessages();
     } catch (e) {
-      print('Verbindungsfehler: $e');
       _setError('Verbindungsfehler: ${e.toString()}');
       _isConnected = false;
       _isOfflineMode = true;
       _setLoading(false);
       notifyListeners();
-      
-      // Fallback zur HTTP-API
+
       await loadMessagesFromApi();
-      
+
       _attemptReconnect(url);
     }
   }
@@ -202,14 +202,55 @@ class ChatProvider with ChangeNotifier {
   // Ping-Timer starten, um die Verbindung aktiv zu halten
   void _startPingTimer() {
     _pingTimer?.cancel();
-    _pingTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+    _pingTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
       if (_isConnected && _channel != null) {
         try {
-          _channel!.sink.add(jsonEncode({
-            'type': 'ping',
-            'timestamp': DateTime.now().toIso8601String(),
-          }));
+          _channel!.sink.add(jsonEncode({'type': 'ping'}));
           print('Ping gesendet');
+          
+          bool receivedResponse = false;
+          
+          // Timeout für die Pong-Antwort (10 Sekunden)
+          Future.delayed(const Duration(seconds: 10), () {
+            if (!receivedResponse && _isConnected) {
+              _consecutivePingFailures++;
+              print('Keine Pong-Antwort erhalten. Fehler: $_consecutivePingFailures/3');
+              
+              if (_consecutivePingFailures >= 3) {
+                print('Zu viele fehlgeschlagene Pings. Verbindung wird als unterbrochen markiert.');
+                _isConnected = false;
+                _isOfflineMode = true;
+                notifyListeners();
+                
+                final url = _serverUrl;
+                if (url != null) {
+                  _attemptReconnect(url);
+                }
+              }
+            }
+          });
+          
+          // Listener für Pong-Antworten
+          // Alte Subscription beenden, falls vorhanden
+          _pingSubscription?.cancel();
+          
+          _pingSubscription = _channel!.stream.listen((data) {
+            try {
+              final jsonData = jsonDecode(data);
+              if (jsonData['type'] == 'pong' || jsonData['type'] == 'heartbeat') {
+                print('Pong/Heartbeat empfangen - Verbindung ist aktiv');
+                receivedResponse = true;
+                _consecutivePingFailures = 0; // Zurücksetzen bei erfolgreicher Antwort
+              }
+            } catch (e) {
+              print('Fehler beim Verarbeiten der Pong-Antwort: $e');
+            }
+          }, onDone: () {
+            _pingSubscription?.cancel();
+          }, onError: (e) {
+            print('Fehler im Pong-Listener: $e');
+            _pingSubscription?.cancel();
+          });
         } catch (e) {
           print('Fehler beim Senden des Pings: $e');
         }
@@ -220,18 +261,19 @@ class ChatProvider with ChangeNotifier {
   // Test der WebSocket-Verbindung
   Future<bool> _testConnection() async {
     try {
-      // Warte maximal 5 Sekunden auf eine erfolgreiche Verbindung
+      // Warte maximal 30 Sekunden auf eine erfolgreiche Verbindung
       Completer<bool> completer = Completer<bool>();
       
-      // Timeout nach 5 Sekunden
-      Future.delayed(const Duration(seconds: 5), () {
+      // Timeout nach 30 Sekunden
+      Future.delayed(const Duration(seconds: 30), () {
         if (!completer.isCompleted) {
-          print('WebSocket-Verbindungstest: Timeout nach 5 Sekunden');
+          print('WebSocket-Verbindungstest: Timeout nach 30 Sekunden');
           completer.complete(false);
         }
       });
       
       // Sende ein Ping, um die Verbindung zu testen
+      print('WebSocket-Verbindungstest: Sende Ping');
       _channel!.sink.add(jsonEncode({
         'type': 'ping',
         'timestamp': DateTime.now().toIso8601String(),
@@ -245,14 +287,26 @@ class ChatProvider with ChangeNotifier {
             try {
               final jsonData = jsonDecode(data);
               // Auf Pong oder andere valide Nachrichten prüfen
-              if (jsonData['type'] == 'pong' || jsonData['type'] == 'message') {
+              if (jsonData['type'] == 'pong' || jsonData['type'] == 'heartbeat') {
+                print('WebSocket-Verbindungstest: Pong/Heartbeat empfangen - Verbindung erfolgreich');
+                completer.complete(true);
+              } else if (jsonData['type'] == 'message' || jsonData['type'] == 'messages') {
+                print('WebSocket-Verbindungstest: ${jsonData['type']} empfangen - Verbindung erfolgreich');
                 completer.complete(true);
               } else {
+                print('WebSocket-Verbindungstest: Unbekannte Nachricht empfangen, akzeptiere trotzdem');
                 completer.complete(true); // Auch andere Nachrichten akzeptieren
               }
             } catch (e) {
               print('WebSocket-Verbindungstest: Fehler beim Parsen der Antwort: $e');
-              completer.complete(true); // Trotzdem als erfolgreich werten, wenn eine Antwort kam
+              // Nur bei schwerwiegenden Fehlern als fehlgeschlagen werten
+              if (e.toString().contains('Connection closed') || 
+                  e.toString().contains('WebSocket not connected')) {
+                completer.complete(false);
+              } else {
+                print('WebSocket-Verbindungstest: Nicht-kritischer Fehler - Verbindung wird akzeptiert');
+                completer.complete(true); // Bei anderen Fehlern als erfolgreich werten
+              }
             }
           }
         },
@@ -263,7 +317,7 @@ class ChatProvider with ChangeNotifier {
           }
         },
         onDone: () {
-          print('WebSocket-Verbindungstest: Verbindung geschlossen');
+          print('WebSocket-Verbindungstest: Verbindung geschlossen während des Tests');
           if (!completer.isCompleted) {
             completer.complete(false);
           }
@@ -272,29 +326,45 @@ class ChatProvider with ChangeNotifier {
       
       bool result = await completer.future;
       
-      // Wenn es ein Test war, schließe das Abo, wenn wir es nicht weiter nutzen
+      // Bei Fehlschlag, Subscription abbrechen
       if (!result) {
-        subscription.cancel();
+        print('WebSocket-Verbindungstest: Fehlgeschlagen - Subscription wird geschlossen');
+        await subscription.cancel();
+      } else {
+        print('WebSocket-Verbindungstest: Erfolgreich - Verbindung wurde etabliert');
       }
       
       return result;
     } catch (e) {
-      print('Fehler beim Testen der Verbindung: $e');
+      print('Schwerwiegender Fehler beim Testen der Verbindung: $e');
       return false;
     }
   }
 
-  // Automatische Wiederverbindung
+  // Automatische Wiederverbindung mit exponentieller Verzögerung
   void _attemptReconnect(String url) {
-    if (_isReconnecting || _reconnectAttempts >= _maxReconnectAttempts) return;
+    if (_isReconnecting || _reconnectAttempts >= _maxReconnectAttempts) {
+      if (_reconnectAttempts >= _maxReconnectAttempts) {
+        print('Maximale Anzahl von Wiederverbindungsversuchen erreicht: $_reconnectAttempts');
+        _addMessage(Message.system('Verbindung konnte nicht wiederhergestellt werden. Bitte App neu starten oder offline weiterarbeiten.'));
+        _isOfflineMode = true; // Wechsle explizit in den Offline-Modus
+        notifyListeners();
+      }
+      return;
+    }
     
     _isReconnecting = true;
     _reconnectAttempts++;
     
-    _addMessage(Message.system('Verbindung verloren. Versuche erneut zu verbinden (Versuch $_reconnectAttempts/$_maxReconnectAttempts)...'));
+    // Exponentielles Backoff: 2^n Sekunden Wartezeit mit max 60 Sekunden
+    int backoffSeconds = math.min(60, math.pow(2, _reconnectAttempts).toInt());
     
-    Future.delayed(const Duration(seconds: 5), () {
+    print('Verbindung verloren. Versuche Wiederverbindung in $backoffSeconds Sekunden (Versuch $_reconnectAttempts/$_maxReconnectAttempts)');
+    _addMessage(Message.system('Verbindung verloren. Versuche erneut zu verbinden in $backoffSeconds Sekunden (Versuch $_reconnectAttempts/$_maxReconnectAttempts)...'));
+    
+    Future.delayed(Duration(seconds: backoffSeconds), () {
       if (!_isConnected) {
+        print('Starte Wiederverbindungsversuch $_reconnectAttempts');
         connectToWebSocket(url);
       }
       _isReconnecting = false;
@@ -400,7 +470,9 @@ class ChatProvider with ChangeNotifier {
   @override
   void dispose() {
     _pingTimer?.cancel();
-    disconnect();
+    _reconnectTimer?.cancel();
+    _pingSubscription?.cancel();
+    _channel?.sink.close();
     super.dispose();
   }
 
@@ -438,5 +510,12 @@ class ChatProvider with ChangeNotifier {
     _reconnectAttempts = 0;
     _isOfflineMode = false;
     await connectToWebSocket(url);
+  }
+
+  // Nachrichten löschen
+  Future<void> clearMessages() async {
+    _messages = [];
+    await _storageService.cacheMessages([]);
+    notifyListeners();
   }
 } 
