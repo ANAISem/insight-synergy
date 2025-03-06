@@ -165,6 +165,9 @@ class ChatProvider with ChangeNotifier {
           _addMessage(Message.fromJson(jsonData['data']));
           _cacheMessages();
           break;
+        case 'clear_messages':
+          clearMessages();
+          break;
         case 'error':
           _setError(jsonData['message']);
           break;
@@ -447,6 +450,6 @@ class ChatProvider with ChangeNotifier {
   Future<void> clearMessages() async {
     _messages = [];
     await _storageService.cacheMessages([]);
-    notifyListeners();
+    if (!_isDisposed) notifyListeners();
   }
 } 

@@ -10,12 +10,12 @@ from fastapi.security import OAuth2PasswordBearer
 import jwt
 from typing import Annotated
 
-from .settings import Settings, get_settings
-from .db.vector_db import VectorDB
-from .services.auth_service import AuthService
-from .services.llm_service import LLMService
-from .services.experts_service import ExpertsService
-from .services.discussion_service import DiscussionService
+from settings import Settings, get_settings
+from db.vector_db import VectorDB
+from services.auth_service import AuthService
+from services.llm_service import LLMService
+from services.experts_service import ExpertsService
+from services.discussion_service import DiscussionService
 
 logger = logging.getLogger(__name__)
 
