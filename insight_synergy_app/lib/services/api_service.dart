@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:developer' as developer;
 
 class ApiResponse<T> {
@@ -16,38 +15,6 @@ class ApiResponse<T> {
 
   factory ApiResponse.failure(String error) {
     return ApiResponse(error: error, success: false);
-  }
-}
-
-class User {
-  final String id;
-  final String username;
-  final String email;
-  final bool isActive;
-
-  User({required this.id, required this.username, required this.email, required this.isActive});
-
-  factory User.fromJson(Map<String, dynamic> json) {
-    return User(
-      id: json['id'],
-      username: json['username'],
-      email: json['email'],
-      isActive: json['is_active'],
-    );
-  }
-}
-
-class AuthResponse {
-  final String accessToken;
-  final String tokenType;
-
-  AuthResponse({required this.accessToken, required this.tokenType});
-
-  factory AuthResponse.fromJson(Map<String, dynamic> json) {
-    return AuthResponse(
-      accessToken: json['access_token'],
-      tokenType: json['token_type'],
-    );
   }
 }
 
@@ -78,44 +45,16 @@ class Message {
 
 class ApiService {
   final String baseUrl;
-  String? _token;
 
   ApiService({required this.baseUrl}) {
     developer.log('ApiService initialisiert mit URL: $baseUrl', name: 'api_service');
   }
 
-  // Token-Management
-  Future<void> setToken(String token) async {
-    _token = token;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('auth_token', token);
-  }
-
-  Future<String?> getToken() async {
-    if (_token != null) return _token;
-    
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
-  }
-
-  Future<void> clearToken() async {
-    _token = null;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('auth_token');
-  }
-
-  // Authentifizierungsheader erstellen
-  Future<Map<String, String>> _getHeaders() async {
-    final headers = {
+  // Standardheader für alle Anfragen
+  Map<String, String> _getHeaders() {
+    return {
       'Content-Type': 'application/json',
     };
-
-    final token = await getToken();
-    if (token != null) {
-      headers['Authorization'] = 'Bearer $token';
-    }
-
-    return headers;
   }
 
   // Hilfsmethode für API-Anfragen mit besserer Fehlerprotokollierung
@@ -155,58 +94,6 @@ class ApiService {
     }
   }
 
-  // Registrierung eines neuen Benutzers
-  Future<ApiResponse<User>> register(String username, String email, String password) async {
-    final body = {
-      'username': username,
-      'email': email,
-      'password': password,
-    };
-
-    return post('/register', body, (json) => User.fromJson(json));
-  }
-
-  // Login und Token abrufen
-  Future<ApiResponse<AuthResponse>> login(String username, String password) async {
-    // Für den Login müssen wir das Format ändern (FormData)
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/token'),
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: {
-          'username': username,
-          'password': password,
-        },
-      ).timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        final jsonData = jsonDecode(response.body);
-        final authResponse = AuthResponse.fromJson(jsonData);
-        
-        // Token speichern
-        await setToken(authResponse.accessToken);
-        
-        return ApiResponse.success(authResponse);
-      } else {
-        String errorMessage;
-        try {
-          final errorJson = jsonDecode(response.body);
-          errorMessage = errorJson['detail'] ?? 'Fehler: HTTP ${response.statusCode}';
-        } catch (_) {
-          errorMessage = 'Fehler: HTTP ${response.statusCode}';
-        }
-        return ApiResponse.failure(errorMessage);
-      }
-    } catch (e) {
-      return ApiResponse.failure('Login fehlgeschlagen: ${e.toString()}');
-    }
-  }
-
-  // Aktuellen Benutzer abrufen
-  Future<ApiResponse<User>> getCurrentUser() async {
-    return get('/users/me', (json) => User.fromJson(json));
-  }
-
   // Nachrichten abrufen
   Future<ApiResponse<List<Message>>> getMessages({int limit = 100}) async {
     return get('/messages?limit=$limit', (json) {
@@ -225,10 +112,10 @@ class ApiService {
     return post('/messages', body, (json) => Message.fromJson(json));
   }
 
-  // Generisches GET mit Error-Handling und Authentifizierung
+  // Generisches GET mit Error-Handling
   Future<ApiResponse<T>> get<T>(String endpoint, T Function(dynamic json) fromJson) async {
     try {
-      final headers = await _getHeaders();
+      final headers = _getHeaders();
       
       final response = await _makeRequest(endpoint, 'GET', headers: headers);
 
@@ -238,11 +125,11 @@ class ApiService {
     }
   }
 
-  // Generisches POST mit Error-Handling und Authentifizierung
+  // Generisches POST mit Error-Handling
   Future<ApiResponse<T>> post<T>(
       String endpoint, dynamic body, T Function(dynamic json) fromJson) async {
     try {
-      final headers = await _getHeaders();
+      final headers = _getHeaders();
       
       final response = await _makeRequest(endpoint, 'POST', body: jsonEncode(body), headers: headers);
 
@@ -252,21 +139,16 @@ class ApiService {
     }
   }
 
-  // Gemeinsames Handling der Antwort mit Fehlerbehandlung
+  // API-Antwort verarbeiten
   ApiResponse<T> _handleResponse<T>(
       http.Response response, T Function(dynamic json) fromJson) {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       try {
         final jsonData = jsonDecode(response.body);
-        final data = fromJson(jsonData);
-        return ApiResponse.success(data);
+        return ApiResponse.success(fromJson(jsonData));
       } catch (e) {
-        return ApiResponse.failure('Fehler bei der Datenverarbeitung: ${e.toString()}');
+        return ApiResponse.failure('JSON-Fehler: ${e.toString()}');
       }
-    } else if (response.statusCode == 401) {
-      // Automatisch Token löschen bei Authentifizierungsfehlern
-      clearToken();
-      return ApiResponse.failure('Authentifizierung abgelaufen. Bitte erneut anmelden.');
     } else {
       String errorMessage;
       try {

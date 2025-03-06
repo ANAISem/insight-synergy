@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'services/api_service.dart';
 import 'providers/chat_provider.dart';
-import 'providers/auth_provider.dart';
 import 'screens/chat_screen.dart';
-import 'screens/login_screen.dart';
-import 'screens/register_screen.dart';
 import 'screens/splash_screen.dart';
 import 'utils/config.dart';
 import 'utils/dynamic_config.dart';
@@ -45,13 +42,6 @@ class MyApp extends StatelessWidget {
             return api;
           },
         ),
-        ChangeNotifierProxyProvider<ApiService, AuthProvider>(
-          create: (context) => AuthProvider(
-            apiService: Provider.of<ApiService>(context, listen: false),
-          ),
-          update: (context, apiService, previous) =>
-              previous ?? AuthProvider(apiService: apiService),
-        ),
         ChangeNotifierProxyProvider<ApiService, ChatProvider>(
           create: (context) => ChatProvider(
             apiService: Provider.of<ApiService>(context, listen: false),
@@ -60,35 +50,15 @@ class MyApp extends StatelessWidget {
               previous ?? ChatProvider(apiService: apiService),
         ),
       ],
-      child: Consumer<AuthProvider>(
-        builder: (context, authProvider, _) {
-          return MaterialApp(
-            title: 'Insight Synergy',
-            theme: ThemeData(
-              primarySwatch: Colors.blue,
-              visualDensity: VisualDensity.adaptivePlatformDensity,
-            ),
-            home: FutureBuilder<bool>(
-              future: authProvider.isLoggedIn(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const SplashScreen();
-                }
-                
-                final isLoggedIn = snapshot.data ?? false;
-                if (isLoggedIn) {
-                  return const ChatScreen();
-                } else {
-                  return const LoginScreen();
-                }
-              },
-            ),
-            routes: {
-              '/login': (context) => const LoginScreen(),
-              '/register': (context) => const RegisterScreen(),
-              '/chat': (context) => const ChatScreen(),
-            },
-          );
+      child: MaterialApp(
+        title: 'Insight Synergy',
+        theme: ThemeData(
+          primarySwatch: Colors.blue,
+          visualDensity: VisualDensity.adaptivePlatformDensity,
+        ),
+        home: const ChatScreen(),
+        routes: {
+          '/chat': (context) => const ChatScreen(),
         },
       ),
     );

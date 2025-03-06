@@ -1,6 +1,6 @@
 {
-  "backend_port": 8001,
-  "backend_url": "http://localhost:8001",
-  "ws_url": "ws://localhost:8001/ws",
-  "timestamp": 1741091905.692991
+  "backend_port": 8009,
+  "backend_url": "http://localhost:8009",
+  "ws_url": "ws://localhost:8009/ws",
+  "timestamp": 1741092814.603335
 }

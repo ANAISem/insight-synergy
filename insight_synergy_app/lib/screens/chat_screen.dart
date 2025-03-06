@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/chat_provider.dart';
-import '../providers/auth_provider.dart';
 import '../models/message_model.dart';
 import '../widgets/message_bubble.dart';
 import '../utils/config.dart';
+import 'dart:developer' as developer;
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -38,33 +38,23 @@ class _ChatScreenState extends State<ChatScreen> {
       final chatProvider = Provider.of<ChatProvider>(context, listen: false);
       
       // Einige Debug-Informationen anzeigen
-      print('Versuche Verbindung zum Server: ${AppConfig.wsBaseUrl}');
-      print('WebSocket aktiviert: ${AppConfig.enableWebsockets}');
-      
-      // Prüfen, ob der Benutzer angemeldet ist
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      if (!authProvider.isAuthenticated) {
-        print('Benutzer ist nicht angemeldet, navigiere zur Login-Seite');
-        
-        if (!mounted) return;
-        
-        // Zum Login-Screen navigieren
-        Navigator.of(context).pushReplacementNamed('/login');
-        return;
-      }
+      developer.log('Versuche Verbindung zum Server: ${AppConfig.wsBaseUrl}', name: 'chat_screen');
+      developer.log('WebSocket aktiviert: ${AppConfig.enableWebsockets}', name: 'chat_screen');
       
       await chatProvider.connectToWebSocket(AppConfig.wsBaseUrl);
 
       // Wenn keine WebSocket-Verbindung hergestellt werden konnte,
       // versuchen wir es mit HTTP und fügen eine Systemmeldung hinzu
       if (!chatProvider.isConnected) {
-        print('WebSocket-Verbindung fehlgeschlagen, verwende HTTP-Fallback');
+        developer.log('WebSocket-Verbindung fehlgeschlagen, verwende HTTP-Fallback', name: 'chat_screen');
         await chatProvider.loadMessagesFromApi();
         await chatProvider.sendMessageHttp('WebSocket nicht verfügbar. Verwende HTTP-Fallback.');
+      } else {
+        developer.log('WebSocket-Verbindung erfolgreich hergestellt', name: 'chat_screen');
       }
     } catch (e) {
       if (!mounted) return;
-      print('Fehler beim Verbinden: $e');
+      developer.log('Fehler beim Verbinden: $e', name: 'chat_screen', error: e);
       
       // Zeige Fehler und biete Wiederverbindung an
       ScaffoldMessenger.of(context).showSnackBar(
@@ -86,21 +76,18 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  // Logout-Funktion
-  Future<void> _logout() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+  // Nachrichten zurücksetzen
+  Future<void> _resetChat() async {
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
     
     // WebSocket-Verbindung trennen
     chatProvider.disconnect();
     
-    // Abmelden
-    await authProvider.logout();
+    // Chat zurücksetzen
+    chatProvider.clearMessages();
     
-    if (!mounted) return;
-    
-    // Zum Login-Screen navigieren
-    Navigator.of(context).pushReplacementNamed('/login');
+    // Neu verbinden
+    _connectToServer();
   }
 
   void _sendMessage() {
@@ -140,12 +127,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Consumer<AuthProvider>(
-          builder: (context, authProvider, _) {
-            final username = authProvider.currentUser?.username ?? 'Chat';
-            return Text('Insight Synergy - $username');
-          },
-        ),
+        title: Text('Insight Synergy - Offline Chat'),
         backgroundColor: Colors.blueGrey[800],
         actions: [
           // Status-Indikator
@@ -160,11 +142,11 @@ class _ChatScreenState extends State<ChatScreen> {
               );
             },
           ),
-          // Logout-Button
+          // Reset-Button
           IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
-            tooltip: 'Abmelden',
+            icon: const Icon(Icons.refresh),
+            onPressed: _resetChat,
+            tooltip: 'Chat zurücksetzen',
           ),
         ],
       ),
