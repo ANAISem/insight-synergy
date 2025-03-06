@@ -2,5 +2,7 @@
   "backend_port": 8009,
   "backend_url": "http://localhost:8009",
   "ws_url": "ws://localhost:8009/ws",
-  "timestamp": 1741092814.603335
+  "timestamp": 1741092814.603335,
+  "offline_mode": true,
+  "use_local_model": true
 }
