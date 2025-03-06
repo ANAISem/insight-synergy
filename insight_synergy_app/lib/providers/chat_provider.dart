@@ -85,6 +85,9 @@ class ChatProvider with ChangeNotifier {
       Completer<bool> connectionCompleter = Completer();
       late StreamSubscription subscription;
       
+      // Erstelle einen broadcast Stream, der mehrfach abgehört werden kann
+      final broadcastStream = _channel!.stream.asBroadcastStream();
+      
       // Timeout nach 5 Sekunden
       Timer(const Duration(seconds: 5), () {
         if (!connectionCompleter.isCompleted) {
@@ -93,7 +96,7 @@ class ChatProvider with ChangeNotifier {
         }
       });
 
-      subscription = _channel!.stream.listen(
+      subscription = broadcastStream.listen(
         (data) {
           try {
             final jsonData = jsonDecode(data);
@@ -133,7 +136,18 @@ class ChatProvider with ChangeNotifier {
         'timestamp': DateTime.now().toIso8601String()
       }));
       
-      return await connectionCompleter.future;
+      final connected = await connectionCompleter.future;
+      
+      if (connected) {
+        // Wenn die Verbindung erfolgreich war, setze den Hauptlistener auf den broadcast Stream
+        _mainSubscription = broadcastStream.listen(
+          (data) => _handleWebSocketMessage(data),
+          onError: (error) => _handleConnectionError(error),
+          onDone: () => _handleConnectionClosed(),
+        );
+      }
+      
+      return connected;
     } catch (e) {
       print('Fehler beim Verbindungsaufbau: $e');
       return false;
@@ -276,13 +290,6 @@ class ChatProvider with ChangeNotifier {
       _isOfflineMode = false;
       _reconnectAttempts = 0;
       _consecutivePingFailures = 0;
-
-      // Hauptverbindungs-Listener
-      _mainSubscription = _channel!.stream.listen(
-        (data) => _handleWebSocketMessage(data),
-        onError: (error) => _handleConnectionError(error),
-        onDone: () => _handleConnectionClosed(),
-      );
 
       _setLoading(false);
       _setError(null);
