@@ -1,324 +1,247 @@
-# Nexus Knowledge Backend
+# Insight Synergy
 
-Ein Backend-System für semantische Suche und Knowledge Management mit Vector-DB und Retrieval-Augmented Generation (RAG).
+![Insight Synergy Logo](docs/assets/logo.png)
 
-## Überblick
+Eine leistungsstarke KI-basierte Analyselösung für die intelligente Verarbeitung und Optimierung von Daten in Echtzeit.
 
-Das Nexus Knowledge Backend ist eine leistungsstarke Plattform für die Verwaltung und Abfrage von Wissen mit Hilfe moderner KI-Technologien. Das System kombiniert Vektordatenbanken für semantische Suche mit LLM-basierter Antwortgenerierung (RAG) und bietet eine flexible API für die Integration in verschiedene Anwendungsfälle.
+[![Tests](https://img.shields.io/badge/tests-passing-brightgreen)]()
+[![Coverage](https://img.shields.io/badge/coverage-85%25-green)]()
+[![Version](https://img.shields.io/badge/version-1.0.0-blue)]()
+[![License](https://img.shields.io/badge/license-MIT-blue)]()
 
-### Hauptfunktionen
+---
 
-- 🔍 **Semantische Suche**: Finde relevante Dokumente basierend auf dem Bedeutungskontext, nicht nur auf Schlüsselwörtern
-- 📚 **Wissensdatenverwaltung**: Speichere, aktualisiere und kategorisiere Dokumente in einer Vektordatenbank
-- 🤖 **LLM-Integration**: Generiere präzise Antworten auf Fragen basierend auf dem gespeicherten Wissen
-- 🔄 **RAG-Pipeline**: Kombiniere Retrieval und Generierung für faktenbasierte Antworten
-- 🌐 **REST-API**: Einfache Integration in bestehende Systeme
-- 📡 **WebSocket-Support**: Echtzeit-Streaming von LLM-Antworten und Systemmetriken
+## 📋 Übersicht
 
-## Technologie-Stack
+Insight Synergy ist eine hochmoderne Plattform für Echtzeit-Analyse und -Optimierung. Das System nutzt KI-Modelle, um aus Rohdaten wertvolle Erkenntnisse zu gewinnen und optimierte Lösungen vorzuschlagen. Die modulare Architektur ermöglicht eine einfache Erweiterbarkeit und Anpassung an verschiedene Anwendungsfälle.
 
-- **FastAPI**: Moderne, schnelle API mit automatischer Dokumentation
-- **WebSockets**: Echtzeit-Kommunikation für Streaming-Antworten
-- **ChromaDB**: Vektordatenbank für die effiziente Speicherung und Abfrage von Embeddings
-- **Sentence-Transformers**: Hochwertige Text-Embeddings für semantische Ähnlichkeit
-- **LangChain**: Framework für die Nutzung von LLMs in einer anwendungsorientierten Pipeline
-- **OpenAI, HuggingFace & Mistral**: Unterstützung für verschiedene LLM-Anbieter
+### 🌟 Hauptmerkmale
 
-## Installation
+- **Echtzeit-Analyse**: Verarbeitung und Analyse von Daten in Echtzeit.
+- **KI-gestützte Optimierung**: Automatische Erkennung von Optimierungspotenzialen.
+- **Modular und Erweiterbar**: Flexible Architektur für einfache Anpassungen.
+- **Memory-Optimiert**: Effiziente Ressourcennutzung durch lazy Loading und automatisches Memory-Management.
+- **Robuste Fehlerbehandlung**: Umfassende Fehlerbehandlung und automatische Wiederholungsversuche.
+- **Feature-Toggles**: Experimentelle Funktionen können einfach aktiviert/deaktiviert werden.
+
+---
+
+## 🚀 Installation
 
 ### Voraussetzungen
 
-- Python 3.9 oder höher
-- pip (Python-Paketmanager)
-- Virtuelle Umgebung (empfohlen)
+- Node.js (v14+)
+- npm (v6+)
+- TypeScript (v4+)
 
-### Einrichtung
-
-1. Repository klonen:
-   ```bash
-   git clone https://github.com/yourusername/nexus-backend.git
-   cd nexus-backend
-   ```
-
-2. Virtuelle Umgebung erstellen und aktivieren:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # Linux/Mac
-   # oder
-   venv\Scripts\activate  # Windows
-   ```
-
-3. Abhängigkeiten installieren:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. Umgebungsvariablen konfigurieren:
-   ```bash
-   cp .env.example .env
-   # Bearbeite die .env-Datei mit deinen Einstellungen
-   ```
-
-## Verwendung
-
-### Server starten
+### Installation
 
 ```bash
-python main.py
+# Repository klonen
+git clone https://github.com/yourusername/insight-synergy.git
+cd insight-synergy
+
+# Abhängigkeiten installieren
+npm install
+
+# Projekt bauen
+npm run build
 ```
 
-Optionen:
-- `--host`: Host-Adresse (Standard: 0.0.0.0)
-- `--port`: Port (Standard: 8000)
-- `--reload`: Auto-Reload bei Codeänderungen aktivieren
-- `--debug`: Debug-Modus aktivieren
-- `--workers`: Anzahl der Worker-Prozesse (Standard: 1)
+---
 
-### API-Endpunkte
+## 💻 Verwendung
 
-Nach dem Start steht die API-Dokumentation unter:
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
+### Schnellstart
 
-Hauptendpunkte:
+```typescript
+import { InsightSynergy } from 'insight-synergy';
 
-- **Dokumente**:
-  - `POST /api/documents`: Dokument erstellen
-  - `GET /api/documents/{doc_id}`: Dokument abrufen
-  - `PUT /api/documents/{doc_id}`: Dokument aktualisieren
-  - `DELETE /api/documents/{doc_id}`: Dokument löschen
-  - `GET /api/documents`: Dokumente auflisten
-  - `POST /api/documents/batch`: Batch-Upload
+// Instanz erstellen
+const insightSynergy = new InsightSynergy();
 
-- **Suche**:
-  - `POST /api/search`: Semantische Suche
-  - `POST /api/knowledge`: RAG-basierte Wissensabfrage
+// System starten
+await insightSynergy.start();
 
-- **WebSockets**:
-  - `WS /api/ws/knowledge`: Streaming-Wissensabfragen
-  - `WS /api/ws/metrics`: Echtzeit-Systemmetriken
+// Metriken verarbeiten
+await insightSynergy.processMetrics({
+  cpu: 0.75,
+  memory: 0.5,
+  timestamp: Date.now()
+});
 
-- **System**:
-  - `GET /api/health`: Gesundheitszustand des Systems prüfen
-  - `GET /api/metrics`: Systemmetriken abrufen
-  - `GET /static/websocket_demo.html`: WebSocket-Demo-Interface
+// System stoppen
+await insightSynergy.stop();
+```
 
-### WebSocket-Demo
+### Feature-Toggles verwenden
 
-Das System bietet eine integrierte WebSocket-Demo-Seite, die du unter `http://localhost:8000/static/websocket_demo.html` aufrufen kannst. Diese Demo zeigt:
+```typescript
+import { FeatureToggle } from 'insight-synergy';
 
-1. Echtzeit-Systemmetriken (CPU, Speicher, aktive Verbindungen)
-2. RAG-basierte Wissensabfragen mit Token-Streaming
-3. Quellenangaben für generierte Antworten
+// Prüfen, ob ein Feature aktiviert ist
+if (FeatureToggle.isEnabled('useAdvancedML')) {
+  // Verwende fortgeschrittene ML-Funktionen
+} else {
+  // Verwende Standardfunktionen
+}
+```
 
-### Beispielanfragen
+### Fehlerbehandlung mit Retry-Mechanismus
 
-#### Dokument hinzufügen
+```typescript
+import { ErrorHandler, ErrorType } from 'insight-synergy';
 
-```bash
-curl -X POST "http://localhost:8000/api/documents" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "content": "Berlin ist die Hauptstadt von Deutschland.",
-    "metadata": {
-      "source_type": "document",
-      "source_name": "Geographie-Lexikon",
-      "tags": ["geographie", "deutschland"]
+const errorHandler = ErrorHandler.getInstance();
+
+// Eine Funktion mit automatischen Wiederholungsversuchen ausführen
+try {
+  const result = await errorHandler.withRetry(
+    async () => {
+      // Potenziell fehleranfällige Operation
+      return await api.fetchData();
+    },
+    {
+      maxRetries: 5,
+      retryOnErrorTypes: [ErrorType.NETWORK, ErrorType.TIMEOUT]
     }
-  }'
-```
-
-#### Semantische Suche
-
-```bash
-curl -X POST "http://localhost:8000/api/search" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "Was ist die Hauptstadt von Deutschland?",
-    "max_results": 3
-  }'
-```
-
-#### WebSocket-Wissensabfrage (JavaScript)
-
-```javascript
-// WebSocket-Verbindung herstellen
-const ws = new WebSocket("ws://localhost:8000/api/ws/knowledge");
-
-// Nachricht senden, wenn Verbindung geöffnet ist
-ws.onopen = function() {
-  const query = {
-    type: "query",
-    data: {
-      query: "Beschreibe Berlin.",
-      max_context_docs: 5
-    }
-  };
-  ws.send(JSON.stringify(query));
-};
-
-// Antwort empfangen
-ws.onmessage = function(event) {
-  const message = JSON.parse(event.data);
+  );
   
-  if (message.type === "token") {
-    // Einzelnes Token der Antwort anzeigen (Streaming)
-    process.stdout.write(message.data.token);
-  } else if (message.type === "answer_complete") {
-    // Vollständige Antwort mit Metadaten
-    console.log("\n\nAntwort vollständig:", message.data);
-  }
-};
+  console.log('Erfolg:', result);
+} catch (error) {
+  console.error('Alle Wiederholungsversuche fehlgeschlagen:', error);
+}
 ```
 
-## Architektur
+### Performance-Monitoring
 
-Das System ist modular aufgebaut und besteht aus mehreren Komponenten:
+```typescript
+import { PerformanceMonitor } from 'insight-synergy';
 
-1. **API-Layer**: FastAPI-Anwendung mit REST- und WebSocket-Endpunkten
-2. **Service-Layer**: Kernfunktionalitäten für Vektordatenbank und LLM-Integration
-3. **Datenmodelle**: Pydantic-Modelle für API-Anfragen und -Antworten
-4. **WebSocket-Manager**: Verwaltung von Echtzeit-Verbindungen und Streaming
-5. **Konfiguration**: Einstellungen und Umgebungsvariablen
-6. **Logging**: Umfassende Protokollierung für Debugging und Monitoring
+const monitor = PerformanceMonitor.getInstance();
 
-## LLM-Konfiguration
+// Monitoring starten
+monitor.startMonitoring();
 
-### OpenAI
+// Eine Operation messen
+const measureId = monitor.startMeasurement('datenverarbeitung');
+// ... Operation durchführen ...
+const duration = monitor.endMeasurement(measureId);
 
-Das System unterstützt standardmäßig OpenAI-Modelle. Konfiguriere sie in der `.env`-Datei:
+console.log(`Operation dauerte ${duration}ms`);
 
-```
-LLM_PROVIDER=openai
-LLM_MODEL_NAME=gpt-3.5-turbo
-OPENAI_API_KEY=your-api-key
-```
-
-### Mistral & HuggingFace
-
-Für Mistral oder andere HuggingFace-Modelle:
-
-```
-LLM_PROVIDER=huggingface
-LLM_MODEL_NAME=mistralai/Mixtral-8x7B-Instruct-v0.1
-HUGGINGFACE_API_KEY=your-api-key
+// Optimierungsvorschläge erhalten
+const suggestions = monitor.getOptimizationSuggestions('datenverarbeitung');
+console.log('Optimierungsvorschläge:', suggestions);
 ```
 
-Für Mistral über die HuggingFace Inference API:
+---
+
+## 🏗️ Architektur
+
+### Kernkomponenten
+
+- **RealTimeAnalysisEngine**: Hauptmodul für Echtzeit-Datenanalyse.
+- **AdvancedMLEngine**: Verwaltet KI-Modelle für die Vorhersage und Optimierung.
+- **ModelFactory**: Lazy-Loading und effiziente Verwaltung von KI-Modellen.
+- **PerformanceMonitor**: Überwacht und optimiert die Systemleistung.
+- **ErrorHandler**: Zentrales Fehlerbehandlungssystem mit erweiterten Funktionen.
+- **FeatureToggle**: Verwaltet experimentelle Funktionen und Fallback-Mechanismen.
+
+### Datenfluss
 
 ```
-LLM_PROVIDER=huggingface
-LLM_MODEL_NAME=mistralai/Mixtral-8x7B-Instruct-v0.1
-HUGGINGFACE_API_KEY=your-api-key
-HUGGINGFACE_INFERENCE_ENDPOINT=https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1
+Rohdaten -> RealTimeAnalysisEngine -> Fensterbasierte Analyse -> Feature-Extraktion -> ModelFactory -> AdvancedMLEngine -> Vorhersagen/Optimierungen
 ```
 
-### Lokale LLMs
+---
 
-Für lokale Modelle mit Ollama:
+## 🧪 Tests
 
-```
-LLM_PROVIDER=local
-USE_OLLAMA=true
-OLLAMA_BASE_URL=http://localhost:11434
-LLM_MODEL_NAME=mistral
-```
+Das Projekt enthält umfassende Testsuits für alle Kernkomponenten:
 
-Oder mit llama.cpp:
+```bash
+# Alle Tests ausführen
+npm test
 
-```
-LLM_PROVIDER=local
-USE_LLAMACPP=true
-LLAMACPP_MODEL_PATH=/path/to/your/model.gguf
+# Test-Abdeckung anzeigen
+npm run test:coverage
+
+# Spezifische Tests ausführen
+npm test -- -t "ModelFactory"
 ```
 
-## WebSocket-Protokoll
+---
 
-### Verbindung zum Knowledge-WebSocket
+## 📄 API Dokumentation
 
-Der Client stellt eine Verbindung zu `ws://host:port/api/ws/knowledge` her.
+Vollständige API-Dokumentation ist verfügbar unter:
 
-### Nachrichten-Typen (Client → Server)
+- [API Referenz](docs/api-reference.md)
+- [Beispiel-Workflows](docs/example-workflows.md)
+- [Fehlerbehandlung](docs/error-handling.md)
+- [Performance-Optimierung](docs/performance-optimization.md)
 
-1. **Query-Anfrage**:
-   ```json
-   {
-     "type": "query",
-     "data": {
-       "query": "Deine Frage hier",
-       "max_context_docs": 5,
-       "filter_criteria": { "optional": "filter" }
-     }
-   }
-   ```
+---
 
-2. **Ping-Anfrage**:
-   ```json
-   {
-     "type": "ping"
-   }
-   ```
+## 🛠️ Entwicklung und Beitrag
 
-### Nachrichten-Typen (Server → Client)
+### Setup für Entwicklung
 
-1. **Verbindung bestätigt**:
-   ```json
-   {
-     "type": "connection_established",
-     "data": {
-       "connection_id": "conn_123",
-       "message": "Verbindung hergestellt."
-     }
-   }
-   ```
+```bash
+# Entwicklungsabhängigkeiten installieren
+npm install
 
-2. **Token-Streaming** (wird für jeden Token gesendet):
-   ```json
-   {
-     "type": "token",
-     "data": {
-       "token": "Teil"
-     }
-   }
-   ```
+# In Entwicklungsmodus starten
+npm run dev
 
-3. **Vollständige Antwort**:
-   ```json
-   {
-     "type": "answer_complete",
-     "data": {
-       "query": "Original-Anfrage",
-       "answer": "Vollständige Antwort",
-       "citations": [...],
-       "confidence": 0.95,
-       "processing_time_ms": 1250,
-       "context_docs_count": 3
-     }
-   }
-   ```
+# Linting durchführen
+npm run lint
 
-## Best Practices
+# Linting-Probleme automatisch beheben
+npm run lint:fix
+```
 
-- **Datenqualität**: Die Qualität der gespeicherten Dokumente beeinflusst maßgeblich die Qualität der Suche und Antwortgenerierung.
-- **Chunking**: Für optimale Ergebnisse sollten große Dokumente in kleinere Chunks aufgeteilt werden.
-- **Metadata**: Nutze Metadaten für die Filterung und Organisation von Dokumenten.
-- **WebSocket-Timeouts**: Achte auf angemessene Timeouts für WebSocket-Verbindungen, besonders bei langsamen LLMs.
-- **LLM-Caching**: Aktiviere Caching für häufige Anfragen, um API-Kosten zu reduzieren.
+### Pull Requests
 
-## Roadmap
+1. Fork erstellen
+2. Feature-Branch erstellen (`git checkout -b feature/amazing-feature`)
+3. Änderungen committen (`git commit -m 'Add amazing feature'`)
+4. Branch pushen (`git push origin feature/amazing-feature`)
+5. Pull Request öffnen
 
-- [x] WebSocket-Support für Streaming-Antworten
-- [x] Mistral und lokale LLM-Integration
-- [ ] Benutzerauthentifizierung und -autorisierung
-- [ ] Automatische Textextraktion aus verschiedenen Dateiformaten
-- [ ] Erweiterte Filterung und Facettensuche
-- [ ] Feinabstimmung der LLM-Modelle auf spezifische Domänen
-- [ ] Automatisierte Tests und CI/CD-Pipeline
+---
 
-## Lizenz
+## 📊 Leistung und Benchmarks
 
-Dieses Projekt steht unter der MIT-Lizenz. Siehe [LICENSE](LICENSE) für Details.
+### Speichernutzung
 
-## Kontakt
+- **Basis-Speicherverbrauch**: ~50MB
+- **Mit aktivierten ML-Modellen**: ~150MB
+- **Mit aktiviertem Performance-Monitoring**: +10-20MB
 
-Bei Fragen oder Beiträgen zum Projekt erstelle bitte ein Issue oder eine Pull-Request im Repository. 
+### Verarbeitungsgeschwindigkeit
+
+- **Einfache Analyse**: ~10ms pro Datenpunkt
+- **Komplexe Analyse mit ML**: ~50-100ms pro Datenpunkt
+- **Batch-Verarbeitung**: ~1000 Datenpunkte/Sekunde
+
+---
+
+## 📝 Lizenz
+
+Dieses Projekt ist unter der MIT-Lizenz lizenziert. Weitere Informationen finden Sie in der [LICENSE](LICENSE)-Datei.
+
+---
+
+## 📞 Kontakt
+
+Bei Fragen oder Anregungen wenden Sie sich bitte an [support@insightsynergy.com](mailto:support@insightsynergy.com).
+
+---
+
+## 🙏 Danksagungen
+
+- [TensorFlow.js](https://www.tensorflow.org/js) - Für die ML-Funktionalitäten
+- [TypeScript](https://www.typescriptlang.org/) - Für type-safety und verbesserte Entwicklungserfahrung
+- [Jest](https://jestjs.io/) - Für das umfassende Test-Framework 

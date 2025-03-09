@@ -1,8 +1,8 @@
 {
-  "backend_port": 8009,
-  "backend_url": "http://localhost:8009",
-  "ws_url": "ws://localhost:8009/ws",
-  "timestamp": 1741092814.603335,
+  "backend_port": 8000,
+  "backend_url": "http://localhost:8000",
+  "ws_url": "ws://localhost:8000/ws",
+  "timestamp": 1741256860.9132302,
   "offline_mode": true,
   "use_local_model": true
 }

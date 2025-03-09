@@ -1,0 +1,145 @@
+**Titel: Detaillierte Seitenstruktur und Ablauf von Insight Synergy**
+
+## **1. Gesamtübersicht der Seiten**
+Insight Synergy besteht aus folgenden Hauptseiten:
+
+1. **Startseite & Begrüßung**
+2. **Neues Projekt erstellen**
+3. **Projektübersicht & Verwaltung**
+4. **Experten-Auswahl & Generierung**
+5. **Debatten-Bereich & KI-Interaktion**
+6. **Ergebnis-Visualisierung & Export**
+7. **Einstellungen & Benutzerverwaltung**
+8. **Datenbank- & Quellenverwaltung**
+9. **Debugging- & Optimierungszentrum**
+
+---
+
+## **2. Detaillierte Beschreibung jeder Seite**
+
+### **1. Startseite & Begrüßung**
+#### **Inhalt & Funktionen:**
+- Willkommenstext mit kurzen Erklärungen zur Funktionsweise.
+- Zwei Auswahlmöglichkeiten:
+  - **Neues Projekt starten**
+  - **Bestehendes Projekt fortsetzen**
+- Direkter Zugriff auf Einstellungen.
+- Dunkles, modernes UI mit minimalistischer Anordnung.
+
+#### **Ablauf:**
+1. Nutzer öffnet die App.
+2. Begrüßungsbildschirm erscheint mit kurzer Einleitung.
+3. Auswahl zwischen **Neues Projekt** oder **Projekt fortsetzen**.
+4. Falls **Projekt fortsetzen**, wird die Projektübersicht geladen.
+5. Falls **Neues Projekt**, gelangt der Nutzer zur Seite "Projekt erstellen".
+
+---
+
+### **2. Neues Projekt erstellen**
+#### **Inhalt & Funktionen:**
+- Eingabefeld für Projekttitel & Beschreibung.
+- Optional: Voreingestellte Templates für verschiedene Fragestellungen.
+- Auswahl relevanter Fachgebiete (Technik, Medizin, Wissenschaft etc.).
+- Weiter-Button zur Experten-Auswahl.
+
+#### **Ablauf:**
+1. Nutzer gibt den Projektnamen und eine kurze Beschreibung ein.
+2. Falls gewünscht, wählt er ein Template für vordefinierte Themen.
+3. Auswahl von Fachgebieten zur Einschränkung der Expertenauswahl.
+4. Bestätigung → Weiterleitung zur Experten-Seite.
+
+---
+
+### **3. Projektübersicht & Verwaltung**
+#### **Inhalt & Funktionen:**
+- Übersicht aller laufenden & abgeschlossenen Projekte.
+- Bearbeiten, duplizieren oder archivieren von Projekten.
+- Sortier- und Suchfunktion für frühere Projekte.
+
+#### **Ablauf:**
+1. Nutzer wählt aus der Liste ein bestehendes Projekt.
+2. Projekt wird geladen & im Dashboard angezeigt.
+3. Nutzer kann Debatten fortsetzen oder neue KI-Diskussionen starten.
+
+---
+
+### **4. Experten-Auswahl & Generierung**
+#### **Inhalt & Funktionen:**
+- Automatische oder manuelle Auswahl von KI-Experten.
+- Experten mit spezifischem Wissen generieren lassen.
+- Anzeige der Wissensbasis jedes Experten.
+- Option zum Bearbeiten oder Austauschen von Experten.
+
+#### **Ablauf:**
+1. Insight Synergy schlägt basierend auf dem Thema passende Experten vor.
+2. Nutzer kann Experten bestätigen oder eigene Fachprofile erstellen.
+3. Experten werden generiert und mit relevanten Daten gefüllt.
+4. Weiterleitung zur Debatten-Seite.
+
+---
+
+### **5. Debatten-Bereich & KI-Interaktion**
+#### **Inhalt & Funktionen:**
+- Live-Dialog zwischen verschiedenen KI-Experten.
+- Nutzer kann Fragen stellen oder Argumentationsstrukturen lenken.
+- Visuelle Darstellung der Argumente (z. B. Baumstruktur, Karten).
+
+#### **Ablauf:**
+1. Nutzer gibt seine Hauptfrage ein.
+2. KI-Experten starten eine Debatte.
+3. Nutzer kann die Debatte steuern oder ergänzende Fragen stellen.
+4. Ergebnisse werden in Echtzeit verarbeitet & strukturiert.
+
+---
+
+### **6. Ergebnis-Visualisierung & Export**
+#### **Inhalt & Funktionen:**
+- Graphische Darstellung der wichtigsten Erkenntnisse.
+- Exportoptionen (PDF, Markdown, JSON).
+- Speicherung von Ergebnissen im Projektarchiv.
+
+#### **Ablauf:**
+1. Nach der Debatte fasst die KI die Erkenntnisse zusammen.
+2. Nutzer kann Ergebnisse als Berichte exportieren.
+3. Optional: Ergebnisse mit externen Quellen validieren.
+
+---
+
+### **7. Einstellungen & Benutzerverwaltung**
+#### **Inhalt & Funktionen:**
+- Anpassung von Theme & Layout.
+- Verwaltung gespeicherter Projekte & Nutzerdaten.
+- API-Schlüssel für KI-Integration verwalten.
+
+#### **Ablauf:**
+1. Nutzer öffnet die Einstellungen.
+2. Anpassung von UI, Datenzugriff & Experten-Profileinstellungen.
+
+---
+
+### **8. Datenbank- & Quellenverwaltung**
+#### **Inhalt & Funktionen:**
+- Import & Verwaltung von Fachartikeln & externen Datenbanken.
+- Quellenspeicherung für langfristige Analyse.
+- Automatische Faktenprüfung aktivieren/deaktivieren.
+
+#### **Ablauf:**
+1. Nutzer importiert externe Quellen oder verknüpft Datenbanken.
+2. System analysiert & speichert relevante Daten für spätere Nutzung.
+
+---
+
+### **9. Debugging- & Optimierungszentrum**
+#### **Inhalt & Funktionen:**
+- Automatische Fehleranalyse der KI-Generierung.
+- Debugging-Funktion zur Optimierung von Argumentationen & Quellennutzung.
+
+#### **Ablauf:**
+1. System analysiert mögliche Logikfehler oder Widersprüche in den Debatten.
+2. Nutzer kann manuell Fehlerkorrekturen durchführen oder KI neu generieren lassen.
+3. Optimierte Argumentationslinien werden gespeichert und verfeinert.
+
+---
+
+🚀 **Ziel:** Dieses Dokument stellt sicher, dass alle Seiten und Funktionen klar definiert sind, um eine präzise, nachvollziehbare Softwareentwicklung für Insight Synergy zu ermöglichen!
+

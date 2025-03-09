@@ -13,14 +13,15 @@ from pydantic import BaseModel
 from .api.router import router as api_router
 from .core.config import settings
 from .core.logging import setup_logger
-from .services.service_factory import get_mistral_service, get_nexus_service
+from .services.service_factory import get_nexus_service
+from .middleware import AdaptiveDebugMiddleware, RequestContextMiddleware
 
 logger = setup_logger()
 
 # Initialize FastAPI app
 app = FastAPI(
     title="Nexus Backend",
-    description="Backend API for the Nexus AI application with Mistral 7B integration",
+    description="Backend API for the Nexus AI application",
     version="0.1.0",
 )
 
@@ -33,6 +34,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add adaptive debugging middleware
+app.add_middleware(RequestContextMiddleware)
+app.add_middleware(AdaptiveDebugMiddleware)
+
 # Secret key for JWT tokens
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = "HS256"
@@ -42,7 +47,6 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # Get services from factory
-mistral_service = get_mistral_service()
 nexus_service = get_nexus_service()
 
 # Include API router
@@ -148,17 +152,23 @@ async def root():
 
 @app.get("/status")
 async def status():
-    mistral_status = mistral_service.check_status()
     return {
         "status": "online",
         "timestamp": datetime.now().isoformat(),
-        "mistral_status": mistral_status,
-        "version": app.version
+        "version": app.version,
+        "insight_core_enabled": settings.ENABLE_INSIGHT_CORE
     }
 
 @app.get("/users/me", response_model=User)
 async def read_users_me(current_user: User = Depends(get_current_active_user)):
     return current_user
+
+# API-Endpunkt für Debug-Status hinzufügen
+@app.get("/debug/status")
+async def debug_status():
+    from nexus_backend.utils.adaptive_debug import get_debug_report
+    report = get_debug_report()
+    return report
 
 if __name__ == "__main__":
     logger.info(f"Starting Nexus Backend on {settings.HOST}:{settings.PORT}")

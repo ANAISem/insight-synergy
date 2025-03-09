@@ -81,7 +81,7 @@ class LLMService:
         
         Args:
             model_name: Name des zu verwendenden LLM-Modells
-            provider: Anbieter des LLM (openai, huggingface, local)
+            provider: Anbieter des LLM (openai, huggingface)
             temperature: Kreativitätsfaktor (0.0 bis 1.0)
             max_tokens: Maximale Anzahl von Tokens in der Antwort
             use_streaming: Ob Streaming-Antworten verwendet werden sollen
@@ -136,131 +136,28 @@ class LLMService:
                 if not self.huggingface_api_key:
                     raise ValueError("HUGGINGFACE_API_KEY nicht gefunden in Umgebungsvariablen")
                 
-                # Differenzierte Unterstützung für verschiedene HuggingFace-Modelle
-                # Spezieller Fall für Mistral
-                if "mistral" in self.model_name.lower():
-                    return self._initialize_mistral()
-                else:
-                    try:
-                        from transformers import pipeline
-                        
-                        hf_pipeline = pipeline(
-                            "text-generation",
-                            model=self.model_name,
-                            tokenizer=self.model_name,
-                            max_new_tokens=self.max_tokens,
-                            temperature=self.temperature
-                        )
-                        
-                        return HuggingFacePipeline(pipeline=hf_pipeline)
-                        
-                    except ImportError:
-                        raise ImportError("Transformers Bibliothek nicht installiert. Bitte installiere: pip install transformers")
-                
-            elif self.provider == "local":
-                # Implementation für lokale Modelle (z.B. LLaMA, Vicuna)
-                return self._initialize_local_llm()
-                
+                try:
+                    from transformers import pipeline
+                    
+                    hf_pipeline = pipeline(
+                        "text-generation",
+                        model=self.model_name,
+                        tokenizer=self.model_name,
+                        max_new_tokens=self.max_tokens,
+                        temperature=self.temperature
+                    )
+                    
+                    return HuggingFacePipeline(pipeline=hf_pipeline)
+                    
+                except ImportError:
+                    raise ImportError("Transformers Bibliothek nicht installiert. Bitte installiere: pip install transformers")
+            
             else:
                 raise ValueError(f"Unbekannter LLM-Provider: {self.provider}")
                 
         except Exception as e:
             logger.error(f"Fehler bei der Initialisierung des LLM: {str(e)}")
-            # Fallback auf einen Mock-LLM für Tests
             return self._create_mock_llm()
-    
-    def _initialize_mistral(self):
-        """Initialisiert Mistral als LLM über die HuggingFace-API."""
-        try:
-            from langchain_community.llms import HuggingFaceTextGenInference
-            
-            # Option 1: Verwendung der HuggingFace Text Generation Inference API
-            if os.getenv("HUGGINGFACE_INFERENCE_ENDPOINT"):
-                endpoint_url = os.getenv("HUGGINGFACE_INFERENCE_ENDPOINT")
-                return HuggingFaceTextGenInference(
-                    inference_server_url=endpoint_url,
-                    max_new_tokens=self.max_tokens,
-                    temperature=self.temperature,
-                    streaming=self.use_streaming,
-                    huggingface_api_key=self.huggingface_api_key
-                )
-            
-            # Option 2: Lokales Mistral-Modell über transformers
-            else:
-                from transformers import AutoTokenizer, AutoModelForCausalLM
-                import torch
-                
-                tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-                model = AutoModelForCausalLM.from_pretrained(
-                    self.model_name,
-                    device_map="auto",
-                    torch_dtype=torch.float16  # Verwendung von FP16 für bessere Performance
-                )
-                
-                # Text-Generation-Pipeline erstellen
-                from transformers import pipeline
-                
-                generation_pipeline = pipeline(
-                    "text-generation",
-                    model=model,
-                    tokenizer=tokenizer,
-                    max_new_tokens=self.max_tokens,
-                    temperature=self.temperature,
-                    repetition_penalty=1.1,
-                    do_sample=True
-                )
-                
-                return HuggingFacePipeline(pipeline=generation_pipeline)
-            
-        except ImportError as e:
-            logger.error(f"Bibliotheken für Mistral nicht installiert: {str(e)}")
-            raise ImportError("Die erforderlichen Bibliotheken für Mistral sind nicht installiert.")
-        
-        except Exception as e:
-            logger.error(f"Fehler bei der Initialisierung von Mistral: {str(e)}")
-            raise
-    
-    def _initialize_local_llm(self):
-        """Initialisiert ein lokales LLM über Ollama oder andere lokale Anbieter."""
-        try:
-            # Option 1: Ollama API
-            if os.getenv("USE_OLLAMA") == "true":
-                from langchain_community.llms import Ollama
-                
-                ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-                return Ollama(
-                    model=self.model_name.split("/")[-1],  # Nur der Modellname ohne Namespace
-                    base_url=ollama_base_url,
-                    temperature=self.temperature,
-                    num_predict=self.max_tokens
-                )
-            
-            # Option 2: llama.cpp (über einen Python-Wrapper)
-            elif os.getenv("USE_LLAMACPP") == "true":
-                from langchain_community.llms import LlamaCpp
-                
-                model_path = os.getenv("LLAMACPP_MODEL_PATH")
-                if not model_path:
-                    raise ValueError("LLAMACPP_MODEL_PATH nicht konfiguriert")
-                
-                return LlamaCpp(
-                    model_path=model_path,
-                    temperature=self.temperature,
-                    max_tokens=self.max_tokens,
-                    n_ctx=2048,  # Kontextfenster
-                    n_batch=512  # Batch-Größe für die Verarbeitung
-                )
-            
-            else:
-                raise ValueError("Kein unterstützter lokaler LLM-Provider konfiguriert.")
-                
-        except ImportError as e:
-            logger.error(f"Bibliotheken für lokale LLMs nicht installiert: {str(e)}")
-            raise ImportError("Die erforderlichen Bibliotheken für lokale LLMs sind nicht installiert.")
-        
-        except Exception as e:
-            logger.error(f"Fehler bei der Initialisierung eines lokalen LLM: {str(e)}")
-            raise
     
     def _create_mock_llm(self):
         """Erstellt einen Mock-LLM für Tests ohne tatsächliche API-Verbindung."""
@@ -499,36 +396,10 @@ class LLMService:
                     callbacks=[streaming_handler] if streaming_handler else None
                 )
                 
-            elif self.provider == "huggingface" and "mistral" in self.model_name.lower():
-                # Implementierung für Mistral mit Streaming
-                if os.getenv("HUGGINGFACE_INFERENCE_ENDPOINT"):
-                    from langchain_community.llms import HuggingFaceTextGenInference
-                    
-                    streaming_llm = HuggingFaceTextGenInference(
-                        inference_server_url=os.getenv("HUGGINGFACE_INFERENCE_ENDPOINT"),
-                        max_new_tokens=self.max_tokens,
-                        temperature=self.temperature,
-                        streaming=True,
-                        callbacks=[streaming_handler] if streaming_handler else None,
-                        huggingface_api_key=self.huggingface_api_key
-                    )
-                else:
-                    logger.warning("Streaming für lokales Mistral-Modell ist noch nicht implementiert.")
-                    # Fallback auf nicht-streaming Mistral
-                    streaming_llm = self.llm
-                    
-            elif self.provider == "local" and os.getenv("USE_OLLAMA") == "true":
-                from langchain_community.llms import Ollama
-                
-                streaming_llm = Ollama(
-                    model=self.model_name.split("/")[-1],
-                    base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
-                    temperature=self.temperature,
-                    num_predict=self.max_tokens,
-                    streaming=True,
-                    callbacks=[streaming_handler] if streaming_handler else None
-                )
-                
+            elif self.provider == "huggingface":
+                logger.warning(f"Streaming für Provider {self.provider} nicht verfügbar. Fallback auf synchrone Generierung.")
+                streaming_llm = self.llm
+            
             else:
                 logger.warning(f"Streaming für Provider {self.provider} nicht verfügbar. Fallback auf synchrone Generierung.")
                 streaming_llm = self.llm

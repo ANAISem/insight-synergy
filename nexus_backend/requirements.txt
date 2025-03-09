@@ -43,4 +43,5 @@ websockets==11.0.3
 requests==2.31.0
 python-jose==3.3.0
 passlib==1.7.4
-bcrypt==4.0.1 
+bcrypt==4.0.1
+tabulate==0.9.0  # Für Debug-Analyzer 

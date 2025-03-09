@@ -4,9 +4,12 @@ import time
 import asyncio
 import logging
 from typing import List, Dict, Any, Optional
+import aiohttp
 
 from pydantic import BaseModel
-from .mistral_service import MistralService, ChatMessage
+
+from .api_client import APIClient
+from ..core.api_config import api_config
 
 logger = logging.getLogger(__name__)
 
@@ -23,17 +26,24 @@ class NexusResponse(BaseModel):
     model: str
     token_count: Optional[int] = None
     processing_time: Optional[float] = None
+    facts_found: Optional[bool] = None
+    model_used: Optional[str] = None  # Speichert das tatsächlich verwendete Modell für Monitoring
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
 
 class NexusService:
     """
-    NexusService verarbeitet Anfragen für Analysen und Lösungsgenerierungen,
-    indem es mit dem MistralService kommuniziert und Ergebnisse aufbereitet.
+    NexusService verarbeitet Anfragen für Analysen und Lösungsgenerierungen
+    über eine API-basierte Implementierung mit Perplexity und OpenAI-Modellen (o1 mini, 4o mini),
+    sowie Insight Synergy Core als Fallback.
     """
     
-    def __init__(self, mistral_service: MistralService):
-        self.mistral_service = mistral_service
+    def __init__(self):
         self.templates_path = os.path.join(os.path.dirname(__file__), "../templates/nexus_templates.json")
         self.templates = self._load_templates()
+        self.api_client = APIClient()
         logger.info("NexusService initialisiert")
     
     def _load_templates(self) -> Dict[str, str]:
@@ -114,111 +124,66 @@ Strukturiere deine Antwort mit Markdown für bessere Lesbarkeit."""
             goals_section=goals_section,
             **{k: v for k, v in kwargs.items() if k not in ["query", "context_section", "goals_section"]}
         )
-    
+
     async def generate_solution(self, request: NexusRequest) -> NexusResponse:
         """
-        Generiert eine Lösung basierend auf der Anfrage, dem Kontext und den Zielen
+        Generate a solution based on the request.
+        Fallback-Reihe: 
+        1. Perplexity
+        2. O1 mini
+        3. 4o-mini
+        4. Insight Core (Reserve)
         """
-        start_time = time.time()
-        logger.info(f"Lösungsgenerierung gestartet für: {request.query[:50]}...")
-        
         try:
-            # System Prompt und Haupt-Prompt vorbereiten
-            system_prompt = self.templates.get("solution_system_prompt", "")
-            main_prompt = self.get_template(
-                "solution_prompt", 
-                query=request.query,
-                context=request.context,
-                goals=request.goals
-            )
-            
-            # Anfrage an Mistral senden
-            messages = [
-                ChatMessage(role="system", content=system_prompt),
-                ChatMessage(role="user", content=main_prompt)
-            ]
-            
-            chat_request = {
-                "messages": [{"role": msg.role, "content": msg.content} for msg in messages],
-                "temperature": 0.7,
-                "max_tokens": request.max_tokens or 3000
-            }
-            
-            response = await self.mistral_service.chat_completion(**chat_request)
-            
-            # Verarbeitungszeit berechnen
-            processing_time = time.time() - start_time
-            
-            # Schritte extrahieren (einfache Heuristik: Überschriften mit # oder ##)
-            solution_text = response["choices"][0]["message"]["content"]
-            steps = self._extract_steps(solution_text)
-            
-            # Token-Zählung aus der Antwort extrahieren
-            token_count = response.get("usage", {}).get("total_tokens", None)
-            
-            return NexusResponse(
-                solution=solution_text,
-                steps=steps,
-                model=response.get("model", "mistral"),
-                token_count=token_count,
-                processing_time=processing_time
-            )
-            
+            # Erster Versuch: Perplexity
+            return await self._generate_with_perplexity(request)
         except Exception as e:
-            logger.error(f"Fehler bei der Lösungsgenerierung: {str(e)}")
-            raise
+            logger.warning(f"Perplexity API failed: {str(e)}. Falling back to O1 mini.")
+            
+            try:
+                # Zweiter Versuch: O1 mini
+                return await self._generate_with_o1_mini(request)
+            except Exception as e:
+                logger.warning(f"O1 mini API failed: {str(e)}. Falling back to 4o-mini.")
+                
+                try:
+                    # Dritter Versuch: 4o-mini
+                    return await self._generate_with_4o_mini(request)
+                except Exception as e:
+                    logger.warning(f"4o-mini API failed: {str(e)}. Falling back to Insight Core.")
+                    
+                    # Letzter Fallback: Insight Core
+                    return await self._generate_with_insight_core(request)
     
     async def analyze_problem(self, request: NexusRequest) -> NexusResponse:
         """
-        Analysiert ein Problem basierend auf der Anfrage und dem Kontext
+        Analyze a problem based on the request.
+        Fallback-Reihe: 
+        1. Perplexity
+        2. O1 mini
+        3. 4o-mini
+        4. Insight Core (Reserve)
         """
-        start_time = time.time()
-        logger.info(f"Problemanalyse gestartet für: {request.query[:50]}...")
-        
         try:
-            # System Prompt und Haupt-Prompt vorbereiten
-            system_prompt = self.templates.get("analysis_system_prompt", "")
-            main_prompt = self.get_template(
-                "analysis_prompt", 
-                query=request.query,
-                context=request.context
-            )
-            
-            # Anfrage an Mistral senden
-            messages = [
-                ChatMessage(role="system", content=system_prompt),
-                ChatMessage(role="user", content=main_prompt)
-            ]
-            
-            chat_request = {
-                "messages": [{"role": msg.role, "content": msg.content} for msg in messages],
-                "temperature": 0.7,
-                "max_tokens": request.max_tokens or 3000
-            }
-            
-            response = await self.mistral_service.chat_completion(**chat_request)
-            
-            # Verarbeitungszeit berechnen
-            processing_time = time.time() - start_time
-            
-            # Analyse-Ergebnis und Schritte extrahieren
-            analysis_text = response["choices"][0]["message"]["content"]
-            steps = self._extract_steps(analysis_text)
-            
-            # Token-Zählung aus der Antwort extrahieren
-            token_count = response.get("usage", {}).get("total_tokens", None)
-            
-            return NexusResponse(
-                solution=analysis_text,
-                steps=steps,
-                model=response.get("model", "mistral"),
-                token_count=token_count,
-                processing_time=processing_time
-            )
-            
+            # Erster Versuch: Perplexity
+            return await self._analyze_with_perplexity(request)
         except Exception as e:
-            logger.error(f"Fehler bei der Problemanalyse: {str(e)}")
-            raise
+            logger.warning(f"Perplexity API failed: {str(e)}. Falling back to O1 mini.")
+            
+            try:
+                # Zweiter Versuch: O1 mini
+                return await self._analyze_with_o1_mini(request)
+            except Exception as e:
+                logger.warning(f"O1 mini API failed: {str(e)}. Falling back to 4o-mini.")
+                
+                try:
+                    # Dritter Versuch: 4o-mini
+                    return await self._analyze_with_4o_mini(request)
+                except Exception as e:
+                    logger.warning(f"4o-mini API failed: {str(e)}. Falling back to Insight Core.")
+                    
+                    # Letzter Fallback: Insight Core
+                    return await self._analyze_with_insight_core(request)
     
     def _extract_steps(self, text: str) -> List[str]:
         """Extrahiert Schritte aus dem generierten Text (basierend auf Überschriften und Listen)"""
@@ -249,16 +214,76 @@ Strukturiere deine Antwort mit Markdown für bessere Lesbarkeit."""
             else:
                 steps = ["Problemdefinition", "Lösungsstrategie", "Umsetzungsschritte", "Ergebnisvalidierung"]
         
-        # Auf maximal 10 Schritte begrenzen, um die UI nicht zu überladen
-        return steps[:10]
-    
+        return steps
+
     async def is_available(self) -> bool:
-        """Überprüft, ob der Mistral-Service verfügbar ist"""
+        """Prüft, ob der Service verfügbar ist"""
         try:
-            return await self.mistral_service.is_available()
+            # Teste eine einfache Anfrage
+            test_query = "Test der API-Verfügbarkeit"
+            response = await self.api_client.generate_answer(test_query)
+            return response is not None
         except Exception as e:
-            logger.error(f"Fehler bei der Verfügbarkeitsprüfung: {str(e)}")
+            logger.error(f"Service nicht verfügbar: {str(e)}")
             return False
+            
+    async def get_service_status(self) -> Dict[str, Any]:
+        """Gibt detaillierte Statusinformationen über verfügbare Modelle zurück"""
+        status = {
+            "online": False,
+            "perplexity_available": False,
+            "primary_model_available": False,
+            "fallback_model_available": False,
+            "is_core_available": False,
+            "models": {
+                "primary": api_config.PRIMARY_MODEL,
+                "fallback": api_config.FALLBACK_MODEL,
+                "is_core": "insight-synergy-core" if api_config.IS_CORE_ENABLED else None
+            }
+        }
+        
+        try:
+            # Teste Perplexity API
+            if api_config.PERPLEXITY_API_KEY:
+                test_query = "Test der API-Verfügbarkeit"
+                facts = await self.api_client.fetch_facts(test_query)
+                status["perplexity_available"] = facts is not None
+            
+            # Teste primäres Modell (o1 mini)
+            if api_config.OPENAI_API_KEY:
+                test_query = "Kurzer Test"
+                response = await self.api_client._generate_openai_answer(
+                    test_query, 
+                    model=api_config.PRIMARY_MODEL
+                )
+                status["primary_model_available"] = response is not None
+            
+            # Teste Fallback-Modell (4o mini)
+            if api_config.OPENAI_API_KEY and api_config.ENABLE_MODEL_FALLBACK:
+                test_query = "Kurzer Test"
+                response = await self.api_client._generate_openai_answer(
+                    test_query, 
+                    model=api_config.FALLBACK_MODEL
+                )
+                status["fallback_model_available"] = response is not None
+            
+            # Teste IS Core
+            if api_config.IS_CORE_ENABLED and api_config.ENABLE_INSIGHT_CORE_FALLBACK:
+                test_query = "Kurzer Test"
+                response = await self.api_client._generate_is_core_answer(test_query)
+                status["is_core_available"] = response is not None
+            
+            # System ist online, wenn mindestens ein Modell verfügbar ist
+            status["online"] = (
+                status["primary_model_available"] or 
+                status["fallback_model_available"] or 
+                status["is_core_available"]
+            )
+            
+            return status
+        except Exception as e:
+            logger.error(f"Fehler bei der Statusabfrage: {str(e)}")
+            return status
 
     # Demo-Funktionen für Tests ohne Mistral-API
     
@@ -372,4 +397,240 @@ class SolutionModel:
             model="Mistral 7B (Demo)",
             processing_time=1.8,
             token_count=820,
-        ) 
+        )
+
+    async def _generate_with_perplexity(self, request: NexusRequest) -> NexusResponse:
+        """Generate a solution using Perplexity API."""
+        from openai import OpenAI
+        import os
+        import time
+        
+        start_time = time.time()
+        
+        try:
+            api_key = os.getenv("PERPLEXITY_API_KEY")
+            if not api_key:
+                raise ValueError("PERPLEXITY_API_KEY not found in environment variables")
+            
+            # Erstellen des Clients mit der Perplexity-Basis-URL
+            client = OpenAI(api_key=api_key, base_url="https://api.perplexity.ai")
+            
+            # Erstellen der Nachrichten für die Anfrage
+            system_message = self.get_template("solution_prompt", {
+                "goals": request.goals or "Provide a comprehensive solution",
+                "details": request.context or ""
+            })
+            
+            messages = [
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": request.query}
+            ]
+            
+            # API-Aufruf
+            response = client.chat.completions.create(
+                model="llama-3-sonar-large-32k-online",
+                messages=messages,
+                temperature=0.7,
+                max_tokens=request.max_tokens or 2000
+            )
+            
+            # Verarbeiten der Antwort
+            solution_text = response.choices[0].message.content
+            steps = self._extract_steps(solution_text)
+            
+            # Prüfen auf Zitate, falls vorhanden
+            references = []
+            if hasattr(response, 'citations') and response.citations:
+                references = [{"text": citation.text, "url": citation.url} 
+                             for citation in response.citations]
+            
+            processing_time = time.time() - start_time
+            
+            return NexusResponse(
+                solution=solution_text,
+                steps=steps,
+                references=references,
+                model="perplexity-llama-3-sonar-large-32k",
+                token_count=response.usage.total_tokens,
+                processing_time=processing_time,
+                facts_found=len(references) > 0,
+                model_used="Perplexity"
+            )
+        
+        except Exception as e:
+            logger.error(f"Error with Perplexity API: {str(e)}")
+            raise 
+
+    async def _generate_with_o1_mini(self, request: NexusRequest) -> NexusResponse:
+        """Generate a solution using O1 mini API."""
+        from openai import OpenAI
+        import os
+        import time
+        
+        start_time = time.time()
+        
+        try:
+            api_key = os.getenv("O1_MINI_API_KEY")
+            if not api_key:
+                raise ValueError("O1_MINI_API_KEY not found in environment variables")
+            
+            # OpenAI-Client für O1 mini
+            client = OpenAI(api_key=api_key)
+            
+            # Erstellen der Nachrichten für die Anfrage
+            system_message = self.get_template("solution_prompt", {
+                "goals": request.goals or "Provide a comprehensive solution",
+                "details": request.context or ""
+            })
+            
+            messages = [
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": request.query}
+            ]
+            
+            # API-Aufruf (angepasst für O1 mini)
+            response = client.chat.completions.create(
+                model="o1-mini",  # O1 mini model
+                messages=messages,
+                temperature=0.7,
+                max_tokens=request.max_tokens or 2000
+            )
+            
+            # Verarbeiten der Antwort
+            solution_text = response.choices[0].message.content
+            steps = self._extract_steps(solution_text)
+            
+            processing_time = time.time() - start_time
+            
+            return NexusResponse(
+                solution=solution_text,
+                steps=steps,
+                references=[],  # O1 mini unterstützt keine Referenzen/Zitate
+                model="o1-mini",
+                token_count=response.usage.total_tokens,
+                processing_time=processing_time,
+                facts_found=False,
+                model_used="O1 mini"
+            )
+        
+        except Exception as e:
+            logger.error(f"Error with O1 mini API: {str(e)}")
+            raise 
+
+    async def _generate_with_4o_mini(self, request: NexusRequest) -> NexusResponse:
+        """Generate a solution using 4o-mini API."""
+        from openai import OpenAI
+        import os
+        import time
+        
+        start_time = time.time()
+        
+        try:
+            api_key = os.getenv("FOUR_O_MINI_API_KEY")
+            if not api_key:
+                raise ValueError("FOUR_O_MINI_API_KEY not found in environment variables")
+            
+            # OpenAI-Client für 4o-mini
+            client = OpenAI(api_key=api_key)
+            
+            # Erstellen der Nachrichten für die Anfrage
+            system_message = self.get_template("solution_prompt", {
+                "goals": request.goals or "Provide a comprehensive solution",
+                "details": request.context or ""
+            })
+            
+            messages = [
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": request.query}
+            ]
+            
+            # API-Aufruf (angepasst für 4o-mini)
+            response = client.chat.completions.create(
+                model="4o-mini",  # 4o-mini model
+                messages=messages,
+                temperature=0.7,
+                max_tokens=request.max_tokens or 2000
+            )
+            
+            # Verarbeiten der Antwort
+            solution_text = response.choices[0].message.content
+            steps = self._extract_steps(solution_text)
+            
+            processing_time = time.time() - start_time
+            
+            return NexusResponse(
+                solution=solution_text,
+                steps=steps,
+                references=[],  # 4o-mini unterstützt keine Referenzen/Zitate
+                model="4o-mini",
+                token_count=response.usage.total_tokens,
+                processing_time=processing_time,
+                facts_found=False,
+                model_used="4o mini"
+            )
+        
+        except Exception as e:
+            logger.error(f"Error with 4o-mini API: {str(e)}")
+            raise 
+
+    async def _analyze_with_perplexity(self, request: NexusRequest) -> NexusResponse:
+        """Analyze a problem using Perplexity API."""
+        from openai import OpenAI
+        import os
+        import time
+        
+        start_time = time.time()
+        
+        try:
+            api_key = os.getenv("PERPLEXITY_API_KEY")
+            if not api_key:
+                raise ValueError("PERPLEXITY_API_KEY not found in environment variables")
+            
+            # Erstellen des Clients mit der Perplexity-Basis-URL
+            client = OpenAI(api_key=api_key, base_url="https://api.perplexity.ai")
+            
+            # Erstellen der Nachrichten für die Anfrage
+            system_message = self.get_template("analysis_prompt", {
+                "goals": request.goals or "Provide a comprehensive analysis",
+                "details": request.context or ""
+            })
+            
+            messages = [
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": request.query}
+            ]
+            
+            # API-Aufruf
+            response = client.chat.completions.create(
+                model="llama-3-sonar-large-32k-online",
+                messages=messages,
+                temperature=0.7,
+                max_tokens=request.max_tokens or 2000
+            )
+            
+            # Verarbeiten der Antwort
+            analysis_text = response.choices[0].message.content
+            steps = self._extract_steps(analysis_text)
+            
+            # Prüfen auf Zitate, falls vorhanden
+            references = []
+            if hasattr(response, 'citations') and response.citations:
+                references = [{"text": citation.text, "url": citation.url} 
+                             for citation in response.citations]
+            
+            processing_time = time.time() - start_time
+            
+            return NexusResponse(
+                solution=analysis_text,
+                steps=steps,
+                references=references,
+                model="perplexity-llama-3-sonar-large-32k",
+                token_count=response.usage.total_tokens,
+                processing_time=processing_time,
+                facts_found=len(references) > 0,
+                model_used="Perplexity"
+            )
+        
+        except Exception as e:
+            logger.error(f"Error with Perplexity API: {str(e)}")
+            raise 

@@ -5,16 +5,10 @@ class AppConfig {
   static const String apiBaseUrl = 'http://localhost:8009';
   static const String wsBaseUrl = 'ws://localhost:8009/ws';
   
-  // Ollama-Konfiguration (für direkten Zugriff auf lokales Modell)
-  static const String ollamaBaseUrl = 'http://localhost:11434/api';
-  static const String mistralModelName = 'mistral';
+  // Feature Flags
+  static const bool enableInsightCore = false;  // Optional aktivierbar
   
-  // Offline-Modus-Einstellungen
-  static const bool preferOfflineMode = true;
-  static const bool useLocalModelByDefault = true;
-  static const bool verboseLogging = true;
-  
-  // Maximale Anzahl von Nachrichten im Cache
+  // Cache-Einstellungen
   static const int maxCachedMessages = 200;
   
   // Zeitüberschreitungen in Millisekunden
@@ -30,15 +24,14 @@ class AppConfig {
   
   // String-Formatierungen für die App
   static const Map<String, String> errorMessages = {
-    'connection_failed': 'Verbindung zum Server fehlgeschlagen. Die App läuft im Offline-Modus.',
-    'local_model_failed': 'Lokales Modell konnte nicht geladen werden. Bitte prüfen Sie die Installation.',
+    'connection_failed': 'Verbindung zum Server fehlgeschlagen.',
+    'api_error': 'Ein Fehler ist bei der API-Anfrage aufgetreten.',
   };
   
   // LLM-Konfiguration
   static const Map<String, dynamic> llmConfig = {
     'temperature': 0.7,
     'max_tokens': 2000,
-    'top_p': 0.95,
-    'use_local': true,
+    'top_p': 0.95
   };
 } 

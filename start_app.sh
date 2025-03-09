@@ -1,169 +1,157 @@
 #!/bin/bash
 
-# Insight Synergy App - Automatisches Startup-Script
-# Dieses Script startet Ollama mit dem Mistral-Modell und die App im Offline-Modus
+# Ports für den Server und das Frontend
+SERVER_PORT=8080
+FRONTEND_PORT=3000
 
-# Konfiguration
-WORKSPACE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-BACKEND_DIR="$WORKSPACE_DIR/nexus_backend"
-FRONTEND_DIR="$WORKSPACE_DIR/insight_synergy_app"
-LOG_DIR="$WORKSPACE_DIR/logs"
-BACKEND_LOG="$LOG_DIR/backend.log"
-FRONTEND_LOG="$LOG_DIR/frontend.log"
-OLLAMA_LOG="$LOG_DIR/ollama.log"
-MISTRAL_MODEL="mistral"
-OFFLINE_MODE="true"
-
-# Farbcodes für bessere Lesbarkeit
+# Farben für Ausgabe
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Funktionen
-create_log_dir() {
-    if [ ! -d "$LOG_DIR" ]; then
-        echo -e "${BLUE}Erstelle Log-Verzeichnis...${NC}"
-        mkdir -p "$LOG_DIR"
-    fi
-}
+# Anzeigen einer Willkommensnachricht
+echo "======================================================"
+echo "        INSIGHT SYNERGY - STARTUP SCRIPT              "
+echo "======================================================"
+echo "Dieses Skript startet Insight Synergy."
+echo
 
-kill_existing_processes() {
-    echo -e "${YELLOW}Beende möglicherweise laufende Prozesse...${NC}"
-    pkill -f "python3.*run_app.py" 2>/dev/null || true
-    pkill -f "flutter.*run" 2>/dev/null || true
-    
-    # Hinweis: Ollama wird nicht beendet, falls bereits laufend
-    # um bestehende Modelle/Sessions nicht zu unterbrechen
-    
-    # Warte kurz, um sicherzustellen, dass alle Prozesse beendet wurden
-    sleep 2
-}
+# Prüfe, ob Node.js installiert ist
+if ! command -v node &> /dev/null; then
+    echo -e "${RED}Node.js ist nicht installiert. Bitte installieren Sie Node.js und versuchen Sie es erneut.${NC}"
+    exit 1
+fi
 
-check_ollama_installed() {
-    echo -e "${BLUE}Prüfe, ob Ollama installiert ist...${NC}"
-    if ! command -v ollama &> /dev/null; then
-        echo -e "${RED}Ollama ist nicht installiert. Bitte installiere Ollama von https://ollama.com${NC}"
-        echo -e "${YELLOW}Anleitung: curl -fsSL https://ollama.com/install.sh | sh${NC}"
+# Zeige Node- und NPM-Version an
+echo -e "${BLUE}Node.js Version:${NC} $(node -v)"
+echo -e "${BLUE}NPM Version:${NC} $(npm -v)"
+echo
+
+# Wechsle ins Verzeichnis des Skripts
+cd "$(dirname "$0")"
+echo -e "${BLUE}Arbeitsverzeichnis:${NC} $(pwd)"
+
+# Prüfe, ob die package.json-Datei existiert
+if [ ! -f "package.json" ]; then
+    echo -e "${RED}package.json nicht gefunden. Bitte stellen Sie sicher, dass Sie im richtigen Verzeichnis sind.${NC}"
+    exit 1
+fi
+
+# Installiere Abhängigkeiten, falls node_modules nicht existiert
+if [ ! -d "node_modules" ]; then
+    echo -e "${YELLOW}Installiere Abhängigkeiten (dies kann einige Minuten dauern)...${NC}"
+    npm install
+    
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}Fehler beim Installieren der Abhängigkeiten. Siehe oben für Details.${NC}"
         exit 1
     fi
-    echo -e "${GREEN}Ollama ist installiert.${NC}"
-}
-
-start_ollama() {
-    echo -e "${BLUE}Starte Ollama im Hintergrund...${NC}"
     
-    # Prüfe, ob Ollama bereits läuft
-    if pgrep -x "ollama" > /dev/null; then
-        echo -e "${GREEN}Ollama läuft bereits.${NC}"
+    echo -e "${GREEN}Abhängigkeiten erfolgreich installiert.${NC}"
+fi
+
+# Prüfe, ob erforderliche Verzeichnisse existieren
+if [ ! -d "public" ]; then
+    echo -e "${RED}Das 'public'-Verzeichnis wurde nicht gefunden. Dies ist für React-Apps erforderlich.${NC}"
+    exit 1
+fi
+
+if [ ! -d "src" ]; then
+    echo -e "${RED}Das 'src'-Verzeichnis wurde nicht gefunden. Dies ist für React-Apps erforderlich.${NC}"
+    exit 1
+fi
+
+# Beende alle möglicherweise laufenden Node-Prozesse auf den spezifischen Ports
+echo -e "${YELLOW}Beende möglicherweise laufende Prozesse auf Port $SERVER_PORT und $FRONTEND_PORT...${NC}"
+lsof -i :$SERVER_PORT -t | xargs kill -9 2>/dev/null || true
+lsof -i :$FRONTEND_PORT -t | xargs kill -9 2>/dev/null || true
+
+# Starte den Backend-Server
+echo -e "${YELLOW}Starte den Insight Synergy Backend-Server auf Port $SERVER_PORT...${NC}"
+node fixed-server.js &
+SERVER_PID=$!
+
+# Warte einen Moment, damit der Server starten kann
+sleep 2
+
+# Prüfe, ob der Server läuft
+if ! lsof -i :$SERVER_PORT -t &> /dev/null; then
+    echo -e "${RED}Server konnte nicht gestartet werden. Bitte überprüfen Sie die Konfiguration.${NC}"
+    echo -e "${YELLOW}Prüfe, ob fixed-server.js existiert...${NC}"
+    
+    if [ ! -f "fixed-server.js" ]; then
+        echo -e "${RED}fixed-server.js wurde nicht gefunden. Stellen Sie sicher, dass diese Datei existiert.${NC}"
     else
-        nohup ollama serve > "$OLLAMA_LOG" 2>&1 &
-        OLLAMA_PID=$!
-        echo -e "${GREEN}Ollama gestartet mit PID $OLLAMA_PID${NC}"
-        
-        # Warte, bis Ollama vollständig gestartet ist
-        echo -e "${BLUE}Warte, bis Ollama bereit ist...${NC}"
-        sleep 5
+        echo -e "${GREEN}fixed-server.js gefunden.${NC}"
     fi
     
-    # Prüfe, ob das Mistral-Modell verfügbar ist
-    echo -e "${BLUE}Prüfe, ob das Mistral-Modell verfügbar ist...${NC}"
-    if ! ollama list | grep -q "$MISTRAL_MODEL"; then
-        echo -e "${YELLOW}Mistral-Modell nicht gefunden. Lade das Modell herunter...${NC}"
-        echo -e "${YELLOW}Dieser Vorgang kann einige Minuten dauern...${NC}"
-        ollama pull "$MISTRAL_MODEL"
-        if [ $? -ne 0 ]; then
-            echo -e "${RED}Fehler beim Herunterladen des Mistral-Modells.${NC}"
-            exit 1
+    exit 1
+fi
+
+echo -e "${GREEN}Backend-Server erfolgreich gestartet mit PID $SERVER_PID auf Port $SERVER_PORT${NC}"
+
+# Starte den Frontend-Server im Entwicklungsmodus
+echo -e "${YELLOW}Starte den Insight Synergy Frontend-Server auf Port $FRONTEND_PORT...${NC}"
+echo -e "${BLUE}Starte mit Befehl: PORT=$FRONTEND_PORT npx react-scripts start${NC}"
+
+# Logging-Datei für den Frontend-Start
+FRONTEND_LOG="frontend_start.log"
+PORT=$FRONTEND_PORT npx react-scripts start > $FRONTEND_LOG 2>&1 &
+FRONTEND_PID=$!
+
+# Warte einen Moment, damit das Frontend starten kann
+echo -e "${YELLOW}Warte bis zu 15 Sekunden auf den Start des Frontends...${NC}"
+
+for i in {1..15}; do
+    sleep 1
+    if lsof -i :$FRONTEND_PORT -t &> /dev/null; then
+        echo -e "${GREEN}Frontend erfolgreich gestartet (nach $i Sekunden)!${NC}"
+        break
+    fi
+    
+    echo -n "."
+    
+    # Nach 10 Sekunden Fehler im Log prüfen
+    if [ $i -eq 10 ]; then
+        if grep -i "error" $FRONTEND_LOG > /dev/null; then
+            echo
+            echo -e "${RED}Fehler im Frontend-Log gefunden:${NC}"
+            grep -i "error" $FRONTEND_LOG | head -5
         fi
     fi
-    echo -e "${GREEN}Mistral-Modell ist verfügbar.${NC}"
-}
+done
 
-start_backend() {
-    echo -e "${BLUE}Starte Backend im Offline-Modus...${NC}"
-    cd "$BACKEND_DIR"
-    
-    # Setze Ausführungsrechte für das dynamische Backend-Script
-    chmod +x dynamic_run.py
-    
-    # Setze Umgebungsvariable für den Offline-Modus
-    export OFFLINE_MODE="$OFFLINE_MODE"
-    export USE_LOCAL_MODEL="true"
-    export OLLAMA_API_URL="http://localhost:11434/api"
-    export MISTRAL_MODEL_NAME="$MISTRAL_MODEL"
-    
-    # Starte das Backend als Hintergrundprozess und protokolliere die Ausgabe
-    python3 dynamic_run.py > "$BACKEND_LOG" 2>&1 &
-    
-    # Speichere die PID des Backend-Prozesses
-    BACKEND_PID=$!
-    echo $BACKEND_PID > "$LOG_DIR/backend.pid"
-    
-    echo -e "${GREEN}Backend gestartet mit PID $BACKEND_PID${NC}"
-    echo -e "${BLUE}Warte 5 Sekunden, damit das Backend vollständig starten kann...${NC}"
-    sleep 5
-}
+echo
 
-setup_macos_flutter() {
-    echo -e "${BLUE}Richte Flutter für macOS ein...${NC}"
-    cd "$FRONTEND_DIR"
-
-    # Aktiviere macOS-Desktop-Unterstützung für das Projekt
-    flutter config --enable-macos-desktop
-
-    # Stelle sicher, dass wir alle Abhängigkeiten haben
-    flutter pub get
+# Prüfe, ob das Frontend läuft
+if ! lsof -i :$FRONTEND_PORT -t &> /dev/null; then
+    echo -e "${RED}Frontend konnte nicht gestartet werden. Der Backend-Server läuft aber weiter.${NC}"
+    echo -e "${YELLOW}Backend-Server läuft mit PID $SERVER_PID auf Port $SERVER_PORT${NC}"
+    echo -e "${YELLOW}Prüfe die letzten 10 Zeilen der Frontend-Logs:${NC}"
+    tail -10 $FRONTEND_LOG
     
-    # Erstelle macOS-Verzeichnis, falls es nicht existiert
-    if [ ! -d "macos" ]; then
-        echo -e "${YELLOW}Erstelle macOS-Ordner für Flutter...${NC}"
-        flutter create --platforms=macos .
+    # Anbieten, die kompletten Logs anzuzeigen
+    echo
+    echo -e "${YELLOW}Möchten Sie die vollständigen Frontend-Logs sehen? (j/n)${NC}"
+    read -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Jj]$ ]]; then
+        cat $FRONTEND_LOG
     fi
-
-    echo -e "${GREEN}Flutter für macOS eingerichtet.${NC}"
-}
-
-start_frontend() {
-    echo -e "${BLUE}Starte Frontend im Offline-Modus...${NC}"
-    cd "$FRONTEND_DIR"
     
-    # Umgebungsvariablen für den Offline-Modus
-    export OFFLINE_FIRST="true"
-    
-    # Richte Flutter für macOS ein
-    setup_macos_flutter
-    
-    # Starte die Flutter-App im Debug-Modus (dies öffnet ein Fenster)
-    echo -e "${YELLOW}Starte Flutter-App im Debug-Modus...${NC}"
-    flutter run -d macos > "$FRONTEND_LOG" 2>&1 &
-    FLUTTER_PID=$!
-    echo $FLUTTER_PID > "$LOG_DIR/frontend.pid"
-    
-    echo -e "${GREEN}Frontend gestartet mit PID $FLUTTER_PID${NC}"
-}
+    echo -e "${BLUE}Versuchen Sie, das Frontend manuell zu starten mit: PORT=$FRONTEND_PORT npx react-scripts start${NC}"
+else
+    echo -e "${GREEN}Insight Synergy wurde erfolgreich gestartet!${NC}"
+    echo -e "${GREEN}Backend-Server läuft mit PID $SERVER_PID auf Port $SERVER_PORT${NC}"
+    echo -e "${GREEN}Frontend-Server läuft mit PID $FRONTEND_PID auf Port $FRONTEND_PORT${NC}"
+fi
 
-show_logs() {
-    echo -e "${BLUE}Die Logs können mit folgenden Befehlen angezeigt werden:${NC}"
-    echo -e "  tail -f $BACKEND_LOG     # Backend-Log"
-    echo -e "  tail -f $FRONTEND_LOG    # Frontend-Log"
-    echo -e "  tail -f $OLLAMA_LOG      # Ollama-Log"
-}
+echo
+echo -e "${BLUE}Öffnen Sie http://localhost:$FRONTEND_PORT in Ihrem Browser, um auf die Anwendung zuzugreifen.${NC}"
+echo -e "${YELLOW}Um die Anwendung zu beenden, drücken Sie Ctrl+C und führen Sie 'lsof -i :$SERVER_PORT -t | xargs kill -9' aus.${NC}"
+echo
 
-# Hauptprogramm
-echo -e "${GREEN}=== Insight Synergy App Starter (Offline-Modus) ===${NC}"
-
-create_log_dir
-kill_existing_processes
-check_ollama_installed
-start_ollama
-start_backend
-start_frontend
-show_logs
-
-echo -e "${GREEN}=== Anwendung erfolgreich gestartet im Offline-Modus! ===${NC}"
-echo -e "${YELLOW}Die App kann jetzt vollständig offline genutzt werden.${NC}"
-echo -e "${YELLOW}Um die Anwendung zu beenden, führe folgende Befehle aus:${NC}"
-echo -e "${YELLOW}- pkill -f \"python3.*dynamic_run.py\"  # Beendet das Backend${NC}"
-echo -e "${YELLOW}- pkill -f \"flutter.*run\"  # Beendet das Frontend${NC}"
+# Warte, bis das Skript unterbrochen wird
+wait $FRONTEND_PID

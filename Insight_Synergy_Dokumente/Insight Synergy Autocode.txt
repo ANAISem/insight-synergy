@@ -1,0 +1,94 @@
+**Titel: Automatische Code-Generierung und Debugging für Insight Synergy**
+
+**Projektziel:**  
+Insight Synergy soll von einer **Coding-IDE mit LLM-Integration** (z. B. Cursor.ai, Windsurf AI) **vollautomatisch programmiert, getestet und optimiert** werden. Die gesamte Entwicklung basiert auf **Prompt-gesteuerter KI-Generierung** und Open-Source-Technologien.
+
+---
+
+## **1. Technologische Rahmenbedingungen**
+
+### **1.1 Entwicklungsmethodik**
+- **LLM-gestützte Code-Generierung** 
+- **Automatisiertes Debugging** durch AI-gestützte Fehleranalyse 
+- **Zero-Code-Entwicklung**: **Keine manuelle Programmierung**, sondern **Prompt-Engineering für AI-gesteuerte Entwicklung**
+- **Schrittweise Verfeinerung und iteratives Debugging**
+- **Adaptive Experten-Modelle**, die sich dynamisch basierend auf Nutzerinteraktionen anpassen
+
+### **1.2 Ziel-Architektur**
+**Frontend:** Electron.js für eine **lokale Desktop-App**
+**Backend:** SQLite + Supabase für flexible lokale & Cloud-Datenhaltung
+**KI-Integration:** Ollama (Llama3/Mistral) **Self-Hosted** + OpenAI API
+**Deployment:** **Tauri oder Electron** für plattformübergreifende Nutzung
+
+**Voraussetzungen:**
+✅ IDE mit LLM-Support (Cursor AI, Windsurf AI, Copilot)  
+✅ API-Key für OpenAI oder Self-Hosted LLM  
+✅ Automatische Code-Erstellung durch AI  
+✅ Dynamische Benutzeroberfläche mit interaktiven Expertenprofilen  
+
+---
+
+## **2. Anweisungen für die Coding-IDE & LLM**
+
+### **2.1 Code-Erstellung & Setup**
+- **Erstelle das Grundgerüst einer Electron.js Desktop-App mit SQLite als Datenbank**
+- **Binde Ollama oder OpenAI API ein** für KI-Interaktion
+- **Integriere ein modulares Plugin-System**, damit später neue KI-Modelle hinzugefügt werden können
+- **Baue eine UI mit React oder Svelte**, die Nutzer**anpassbare KI-Diskussionen** erlaubt
+- **Erstelle ein Prompt-Optimierungssystem**, damit die KI kontinuierlich aus vorherigen Anfragen lernt
+- **Implementiere ein interaktives Dashboard**, das Nutzer durch den Prozess führt und Ergebnisse klar strukturiert anzeigt
+
+### **2.2 Automatisierter Ablauf bei der Nutzeranfrage**
+1. Nutzer öffnet das Programm. 
+2. Begrüßung und Auswahloptionen erscheinen: 
+   - Neues Projekt starten
+   - Bestehendes Projekt fortsetzen
+3. Nutzer gibt seine Hauptfragestellung ein.
+4. Insight Synergy analysiert die Fragestellung und prüft, welche Experten-Profile notwendig sind.
+5. Automatische Generierung oder Auswahl bestehender KI-Experten (mit spezialisierter Wissensbasis)
+6. Experten-Debatte beginnt: Dynamische Antworten in strukturierter Form mit realistischen Diskussionsansätzen.
+7. Live-Validierung durch Faktenchecks und externe Datenquellen (z. B. Wikipedia, Fachartikel, Datenbanken).
+8. Ergebnisse werden visuell aufbereitet und können als Report exportiert werden (PDF, Markdown, JSON).
+
+### **2.3 Automatisiertes Debugging & Testing**
+- **Nutze LLM-basierte Fehleranalyse** und Debugging (Cursor AI/Windsurf AI)
+- **Automatische Tests** für Datenbank-Integration (SQLite/Supabase)
+- **Validiere KI-Modelle** durch Benchmarks gegen OpenAI API
+- **Simuliere verschiedene Nutzer-Interaktionen**, um UI/UX-Probleme frühzeitig zu erkennen
+
+---
+
+## **3. Prompt-Engineering für die Code-Generierung**
+
+### **3.1 Master-Prompt für Code-Generierung**
+```plaintext
+Erstelle eine Electron.js-App mit SQLite als Datenbank. Die App heißt Insight Synergy und muss ein lokales KI-Diskussionssystem enthalten, das mit Llama3/Mistral oder OpenAI arbeitet. Die UI muss in React oder Svelte erstellt werden und sich anpassen können. Baue ein modulares Plugin-System ein, damit später weitere KI-Modelle integriert werden können. Nutze Supabase für optionale Cloud-Speicherung. Implementiere ein selbstoptimierendes Prompt-System, das aus Nutzer-Interaktionen lernt."
+```
+
+### **3.2 Master-Prompt für Debugging**
+```plaintext
+Analysiere den generierten Code und prüfe auf Fehler oder Performance-Probleme. Optimiere ineffiziente Abfragen und stelle sicher, dass das KI-Modell korrekt in die Electron-App integriert ist. Teste die SQLite-Datenbank und simuliere Benutzerinteraktionen, um Fehlerquellen zu finden und zu beheben.
+```
+
+---
+
+## **4. Visuelles Design & UX-Richtlinien**
+- **Dunkles, modernes UI mit kontrastreicher Lesbarkeit** (Tailwind CSS oder Material UI)
+- **Dynamische Anpassung je nach Nutzer-Interaktion**
+- **Elegante, strukturierte Anzeige der Experten-Diskussionen** (kartenbasiertes Layout)
+- **Interaktive Timeline zur Nachverfolgung des Forschungsprozesses**
+- **Automatische Generierung von Diagrammen & Graphen zur Wissensdarstellung**
+- **Minimalistisches, professionelles Design mit klarem Fokus auf Nutzerführung**
+
+---
+
+## **5. Deployment & Ausführung**
+
+1. **IDE öffnen** (Cursor AI, Windsurf AI)  
+2. **Master-Prompt eingeben**  
+3. **Generierten Code automatisch testen**  
+4. **Debugging-Prompt verwenden**  
+5. **Insight Synergy als Desktop-App deployen**
+
+🚀 **Ziel:** Eine vollautomatisierte LLM-gestützte Entwicklung von Insight Synergy mit **perfekter Nutzererfahrung & tiefgehender Wissensverarbeitung**!
+

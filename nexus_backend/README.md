@@ -1,134 +1,81 @@
 # Nexus Backend
 
-Ein wissensbasiertes Backend-System für semantische Suche, Wissensextraktion und strukturierte Antwortgenerierung.
-
-## Features
-
-- Vector-Datenbank für semantische Suche
-- Wissensextraktions-Pipeline für verschiedene Dokumententypen
-- Prompt-Template-System für Wissensabfragen
-- API-Endpunkte für Wissenssuche und -speicherung
-- Lösungsgenerator mit strukturierter Antwortgenerierung
-- Quellenverwaltung und Zitationssystem
-- Zweistufiges Cache-System (Memory + Redis) für optimierte Antwortzeiten
-- WebSocket-Unterstützung für Echtzeit-Token-Streaming und System-Metriken
-- Authentifizierung mit API-Keys für sichere Zugriffssteuerung
+Backend-Server für die Insight Synergy Anwendung.
 
 ## Installation
 
-1. Python-Umgebung einrichten (Python 3.9+ empfohlen):
-
 ```bash
-python -m venv venv
-source venv/bin/activate  # Unter Windows: venv\Scripts\activate
-```
-
-2. Abhängigkeiten installieren:
-
-```bash
+# Abhängigkeiten installieren
 pip install -r requirements.txt
+
+# .env-Datei erstellen (aus .env.example kopieren)
+cp .env.example .env
+
+# API-Keys eintragen
+# Öffne .env und füge deine API-Keys ein:
+# PERPLEXITY_API_KEY=dein_api_key
+# OPENAI_API_KEY=dein_api_key
 ```
 
-3. Umgebungsvariablen konfigurieren:
+## Konfiguration
 
-Erstelle eine `.env`-Datei im Hauptverzeichnis mit folgenden Variablen:
+Die Konfiguration erfolgt über die `.env`-Datei:
 
-```
-OPENAI_API_KEY=your_openai_api_key
-VECTOR_DB_PATH=./data/vector_db
-KNOWLEDGE_BASE_PATH=./data/knowledge_base
-REDIS_ENABLED=false
-REDIS_URL=redis://localhost:6379/0
-CACHE_TTL=86400
-API_KEYS=key1,key2,key3
-```
+- **PORT**: Port für den Backend-Server (Standard: 3000)
+- **PERPLEXITY_MODEL**: Das zu verwendende Perplexity-Modell (Standard: sonar-deep-research)
+- **PRIMARY_MODEL**: Das primäre OpenAI-Modell (Standard: gpt-o1-mini)
+- **FALLBACK_MODEL**: Das Fallback-OpenAI-Modell (Standard: gpt-4o-mini)
 
-## Entwicklung
-
-Starte den Entwicklungsserver:
+## Starten des Backends
 
 ```bash
+# Starten des Backends
 cd nexus_backend
-uvicorn api.main:app --reload
+python -m app.main
 ```
 
-## Projektstruktur
+## Starten des Insight Synergy Core (für Fallback)
 
-```
-nexus_backend/
-├── api/                # FastAPI Endpunkte
-│   ├── cache.py        # Cache-Management API
-│   ├── documents.py    # Dokumenten-API
-│   ├── health.py       # Gesundheits-Check-API
-│   ├── search.py       # Such-API
-│   └── websocket.py    # WebSocket-API für Streaming
-├── config/             # Konfiguration und Einstellungen
-├── db/                 # Vektordatenbank und SQL-DB-Modelle
-├── docs/               # Dokumentation
-│   └── cache_system.md # Cache-System-Dokumentation
-├── extractors/         # Dokumentenextraktion und -verarbeitung
-├── models/             # Pydantic-Modelle und Output-Parser
-├── services/           # Backend-Services
-│   ├── cache_service.py # Cache-Service für LLM-Antworten
-│   ├── llm_service.py   # LLM-Integrationsservice
-│   └── vector_db.py     # Vektordatenbank-Service
-├── static/             # Statische Dateien (z.B. WebSocket-Demo)
-├── utils/              # Hilfsfunktionen
-└── tests/              # Automatisierte Tests
-    ├── test_cache_api.py     # Tests für Cache-API
-    ├── test_cache_service.py # Tests für Cache-Service
-    └── test_websocket.py     # Tests für WebSocket-Funktionalität
+Der Insight Synergy Core ist ein lokales System, das als Fallback verwendet wird, wenn die OpenAI-Modelle nicht verfügbar sind.
+
+```bash
+# Navigiere zum Hauptverzeichnis
+cd ..
+
+# Starte den Insight Synergy Core
+cd src
+npm run start-core
 ```
 
-## Nutzung
+## API-Endpunkte
 
-Nach dem Start des Servers sind folgende Endpunkte verfügbar:
+Das Backend bietet die folgenden API-Endpunkte:
 
-- `GET /api/docs`: Swagger-Dokumentation
-- `POST /api/knowledge/search`: Semantische Suche in der Wissensdatenbank
-- `POST /api/knowledge/store`: Neue Dokumente zur Wissensdatenbank hinzufügen
-- `POST /api/knowledge/query`: Wissensabfrage mit strukturierter Antwort
-- `WS /api/ws/knowledge`: WebSocket für Streaming-Wissensabfragen
-- `WS /api/ws/metrics`: WebSocket für System-Metriken
-- `GET /api/cache/stats`: Cache-Statistiken abrufen (erfordert API-Key)
-- `POST /api/cache/clear`: Cache leeren (erfordert API-Key)
+### Nexus-Endpunkte
 
-## Cache-System
+- `POST /api/nexus/solution` - Generiert eine Lösung für ein Problem
+- `POST /api/nexus/analyze` - Analysiert ein Problem
+- `GET /api/nexus/status` - Prüft den Status des Nexus-Services
 
-Das Nexus-Backend verwendet ein zweistufiges Cache-System für optimierte Antwortzeiten:
+### Such-Endpunkte
 
-- **Memory-Cache**: Schneller In-Memory-LRU-Cache für häufig abgefragte Antworten
-- **Redis-Cache** (optional): Persistenter Cache für dauerhafte Speicherung und Instanzübergreifende Nutzung
+- `GET /api/search` - Sucht nach Dokumenten
+- `GET /api/search/suggestions` - Generiert Suchvorschläge
 
-Das Cache-System kann über Umgebungsvariablen konfiguriert werden. Weitere Informationen finden Sie in der [Cache-System-Dokumentation](docs/cache_system.md).
+### Wissens-Endpunkte
 
-## WebSocket-Support
+- `POST /api/knowledge/query` - Führt eine Wissensabfrage durch
 
-Das System unterstützt WebSocket-Verbindungen für:
+### Dokument-Endpunkte
 
-- **Token-Streaming**: Antworten werden Token für Token in Echtzeit übertragen
-- **System-Metriken**: Überwachung von CPU, Speicher und anderen Systemressourcen
-- **Heartbeat und Reconnect**: Automatische Wiederverbindung bei Netzwerkproblemen
+- `POST /api/documents` - Erstellt ein neues Dokument
+- `GET /api/documents` - Ruft Dokumente ab
+- `GET /api/documents/{document_id}` - Ruft ein Dokument ab
 
-Eine einfache WebSocket-Demo ist unter `/static/websocket_demo.html` verfügbar.
+## Verbindung mit dem Frontend
 
-## Fehlerbehebung
+Das Frontend verbindet sich automatisch mit dem Backend, solange der Backend-Server auf Port 3000 läuft. Der Port ist in der Frontend-Konfiguration auf Port 3000 festgelegt (siehe `nexus_frontend/lib/core/constants/api_constants.dart`).
 
-### Redis-Cache
-
-Bei Problemen mit dem Redis-Cache:
-
-1. Überprüfen Sie, ob Redis läuft: `redis-cli ping`
-2. Stellen Sie sicher, dass die Redis-URL korrekt ist
-3. Deaktivieren Sie Redis temporär: `REDIS_ENABLED=false`
-
-### API-Keys
-
-Bei Authentifizierungsproblemen:
-
-1. Überprüfen Sie, ob der API-Key im `X-API-Key`-Header übergeben wird
-2. Stellen Sie sicher, dass der verwendete Key in den `API_KEYS` konfiguriert ist
-
-## Lizenz
-
-Copyright © 2025 
+```dart
+static const String baseUrl = 'http://localhost:3000';
+``` 

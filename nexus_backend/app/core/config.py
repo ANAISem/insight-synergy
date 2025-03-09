@@ -26,13 +26,11 @@ class Settings(BaseSettings):
         "http://127.0.0.1:8080",
     ]
     
-    # Ollama/Mistral-Konfiguration
-    OLLAMA_API_URL: str = os.getenv("OLLAMA_API_URL", "http://localhost:11434/api")
-    MISTRAL_MODEL_NAME: str = os.getenv("MISTRAL_MODEL_NAME", "mistral")
-    USE_LOCAL_MODEL: bool = os.getenv("USE_LOCAL_MODEL", "true").lower() == "true"
-    MISTRAL_API_KEY: Optional[str] = os.getenv("MISTRAL_API_KEY")
-    MISTRAL_API_ENDPOINT: str = os.getenv("MISTRAL_API_ENDPOINT", "https://api.mistral.ai/v1")
+    # API-Konfiguration
     API_TIMEOUT: int = int(os.getenv("API_TIMEOUT", "30"))
+    
+    # Insight Core Feature Flag
+    ENABLE_INSIGHT_CORE: bool = os.getenv("ENABLE_INSIGHT_CORE", "false").lower() == "true"
     
     # JWT-Konfiguration für Authentifizierung
     SECRET_KEY: str = os.getenv("SECRET_KEY", "geheimerschluessel123456789") # In Produktion ändern!
