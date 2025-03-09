@@ -1,0 +1,15 @@
+{
+  "openai": {
+    "apiKey": "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",
+    "baseUrl": "https://api.openai.com/v1",
+    "models": {
+      "4o-mini": "gpt-4o-mini",
+      "o1-mini": "gpt-4o"
+    }
+  },
+  "perplexity": {
+    "apiKey": "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",
+    "baseUrl": "https://api.perplexity.ai",
+    "model": "sonar-deep-research"
+  }
+}

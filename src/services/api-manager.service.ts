@@ -71,9 +71,9 @@ class ApiManagerService {
   constructor() {
     console.log('API Manager wird initialisiert');
     console.log('Umgebungsvariablen:', {
-      NEXT_PUBLIC_OPENAI_API_KEY: process.env.NEXT_PUBLIC_OPENAI_API_KEY?.substring(0, 10) + '...',
-      NEXT_PUBLIC_PERPLEXITY_API_KEY: process.env.NEXT_PUBLIC_PERPLEXITY_API_KEY?.substring(0, 10) + '...',
-      NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL
+      NEXT_PUBLIC_OPENAI_API_KEY: process.env.NEXT_PUBLIC_OPENAI_API_KEY ? 'Vorhanden (gekürzt)' : 'Nicht gesetzt',
+      NEXT_PUBLIC_PERPLEXITY_API_KEY: process.env.NEXT_PUBLIC_PERPLEXITY_API_KEY ? 'Vorhanden (gekürzt)' : 'Nicht gesetzt',
+      NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'Nicht gesetzt'
     });
 
     // Initialisiere Standard-API-Endpunkte
@@ -111,18 +111,14 @@ class ApiManagerService {
     ];
 
     this.status.diagnosticInfo.totalEndpoints = this.endpoints.length;
+    this.status.diagnosticInfo.endpointDetails = this.endpoints.map(e => ({
+      name: e.name,
+      status: 'unknown'
+    }));
 
-    // API-Schlüssel aus Umgebungsvariablen oder localStorage holen
-    this.apiKeys = {
-      openai: localStorage.getItem('openai_api_key') || process.env.NEXT_PUBLIC_OPENAI_API_KEY || '',
-      perplexity: localStorage.getItem('perplexity_api_key') || process.env.NEXT_PUBLIC_PERPLEXITY_API_KEY || ''
-    };
-
-    console.log('Geladene API-Schlüssel:', {
-      openai: this.apiKeys.openai ? this.apiKeys.openai.substring(0, 10) + '...' : 'nicht gesetzt',
-      perplexity: this.apiKeys.perplexity ? this.apiKeys.perplexity.substring(0, 10) + '...' : 'nicht gesetzt'
-    });
-
+    // API-Schlüssel sicher aus Umgebungsvariablen oder localStorage holen
+    this._initializeApiKeys();
+    
     // Mock-Daten für Offline-Betrieb vorbereiten
     this.initMockData();
     
@@ -130,11 +126,42 @@ class ApiManagerService {
     this.initialize().catch(error => {
       console.error('Fehler bei der API-Initialisierung:', error);
       // Zeige Toast-Nachricht mit Fehlermeldung
-      toast({
-        variant: 'destructive',
-        title: this.t('api.error.initialization'),
-        description: String(error)
-      });
+      try {
+        toast({
+          variant: 'destructive',
+          title: this.t('api.error.initialization'),
+          description: String(error)
+        });
+      } catch (e) {
+        console.error('Toast-Fehler:', e);
+      }
+    });
+  }
+
+  // Neue Methode zum sicheren Initialisieren der API-Schlüssel
+  private _initializeApiKeys() {
+    let localStorageOpenAiKey = '';
+    let localStoragePerplexityKey = '';
+    
+    // Sicherer localStorage-Zugriff
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorageOpenAiKey = localStorage.getItem('openai_api_key') || '';
+        localStoragePerplexityKey = localStorage.getItem('perplexity_api_key') || '';
+      }
+    } catch (e) {
+      console.warn('localStorage nicht verfügbar:', e);
+    }
+    
+    // Umgebungsvariablen haben Vorrang
+    this.apiKeys = {
+      openai: process.env.NEXT_PUBLIC_OPENAI_API_KEY || localStorageOpenAiKey || '',
+      perplexity: process.env.NEXT_PUBLIC_PERPLEXITY_API_KEY || localStoragePerplexityKey || ''
+    };
+    
+    console.log('API-Schlüssel Status:', {
+      openai: this.apiKeys.openai ? 'Vorhanden (gekürzt)' : 'Nicht gesetzt',
+      perplexity: this.apiKeys.perplexity ? 'Vorhanden (gekürzt)' : 'Nicht gesetzt'
     });
   }
 
@@ -336,56 +363,61 @@ class ApiManagerService {
         try {
           console.log(`Prüfe Endpunkt: ${endpoint.name} (${endpoint.url})`);
           
-          // Spezielle Prüfungen für OpenAI und Perplexity
-          let testPath = 'status';
-          let headers: Record<string, string> = { 'Accept': 'application/json' };
-          
+          // Spezifische Testlogik für jeden Endpunkttyp
           if (endpoint.name === 'OpenAI API') {
-            testPath = 'models';
-            if (this.apiKeys.openai) {
-              headers['Authorization'] = `Bearer ${this.apiKeys.openai}`;
-            } else {
+            // OpenAI-spezifischer Test
+            if (!this.apiKeys.openai) {
               console.warn('OpenAI API-Schlüssel fehlt, überspringe Endpunkt');
               this.updateEndpointStatus(endpoint.name, 'unavailable');
               endpoint.isAvailable = false;
               continue;
             }
+            
+            // Teste direkt mit OpenAI
+            const isOpenAIAvailable = await this._testOpenAIConnection(endpoint);
+            if (isOpenAIAvailable) {
+              return this._setEndpointAsAvailable(endpoint);
+            }
+            
           } else if (endpoint.name === 'Perplexity API') {
-            testPath = 'models';
-            if (this.apiKeys.perplexity) {
-              headers['Authorization'] = `Bearer ${this.apiKeys.perplexity}`;
-            } else {
+            // Perplexity-spezifischer Test
+            if (!this.apiKeys.perplexity) {
               console.warn('Perplexity API-Schlüssel fehlt, überspringe Endpunkt');
               this.updateEndpointStatus(endpoint.name, 'unavailable');
               endpoint.isAvailable = false;
               continue;
             }
+            
+            // Teste direkt mit Perplexity
+            const isPerplexityAvailable = await this._testPerplexityConnection(endpoint);
+            if (isPerplexityAvailable) {
+              return this._setEndpointAsAvailable(endpoint);
+            }
+            
+          } else {
+            // Standard-Test für andere Endpunkte
+            const startTime = Date.now();
+            const response = await fetch(`${endpoint.url}/status`, {
+              method: 'GET',
+              headers: { 'Accept': 'application/json' },
+              signal: AbortSignal.timeout(this.config.timeout)
+            });
+            const endTime = Date.now();
+            
+            endpoint.responseTime = endTime - startTime;
+            this.updateEndpointStatus(
+              endpoint.name, 
+              response.ok ? 'available' : 'unavailable', 
+              endpoint.responseTime
+            );
+            
+            if (response.ok) {
+              return this._setEndpointAsAvailable(endpoint);
+            }
+            
+            console.log(`Endpunkt ${endpoint.name} nicht verfügbar, Status: ${response.status}`);
+            endpoint.isAvailable = false;
           }
-          
-          const startTime = Date.now();
-          const response = await fetch(`${endpoint.url}/${testPath}`, {
-            method: 'GET',
-            headers,
-            signal: AbortSignal.timeout(this.config.timeout)
-          });
-          const endTime = Date.now();
-          
-          endpoint.responseTime = endTime - startTime;
-          
-          // Aktualisiere Statusdetails
-          this.updateEndpointStatus(endpoint.name, response.ok ? 'available' : 'unavailable', endpoint.responseTime);
-          
-          if (response.ok) {
-            console.log(`Endpunkt ${endpoint.name} ist verfügbar`);
-            endpoint.isAvailable = true;
-            this.status.isConnected = true;
-            this.status.currentEndpoint = endpoint;
-            this.status.lastError = null;
-            return endpoint;
-          }
-          
-          console.log(`Endpunkt ${endpoint.name} nicht verfügbar, Status: ${response.status}`);
-          endpoint.isAvailable = false;
         } catch (error) {
           console.error(`Fehler beim Prüfen von Endpunkt ${endpoint.name}:`, error);
           endpoint.isAvailable = false;
@@ -403,6 +435,78 @@ class ApiManagerService {
     } finally {
       this.checkInProgress = false;
     }
+  }
+  
+  // Hilfsmethode zum Testen der OpenAI-Verbindung
+  private async _testOpenAIConnection(endpoint: ApiEndpoint): Promise<boolean> {
+    try {
+      console.log('Teste OpenAI API-Verbindung...');
+      const startTime = Date.now();
+      const response = await fetch(`${endpoint.url}/models`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.apiKeys.openai}`,
+          'Content-Type': 'application/json'
+        },
+        signal: AbortSignal.timeout(this.config.timeout)
+      });
+      const endTime = Date.now();
+      
+      endpoint.responseTime = endTime - startTime;
+      this.updateEndpointStatus(
+        endpoint.name, 
+        response.ok ? 'available' : 'unavailable', 
+        endpoint.responseTime
+      );
+      
+      console.log(`OpenAI API Test: ${response.ok ? 'Erfolgreich' : 'Fehlgeschlagen'}, Status: ${response.status}`);
+      return response.ok;
+    } catch (error) {
+      console.error('OpenAI Verbindungstest fehlgeschlagen:', error);
+      this.updateEndpointStatus(endpoint.name, 'unavailable');
+      return false;
+    }
+  }
+
+  // Hilfsmethode zum Testen der Perplexity-Verbindung
+  private async _testPerplexityConnection(endpoint: ApiEndpoint): Promise<boolean> {
+    try {
+      console.log('Teste Perplexity API-Verbindung...');
+      const startTime = Date.now();
+      const response = await fetch(`${endpoint.url}/models`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.apiKeys.perplexity}`,
+          'Content-Type': 'application/json'
+        },
+        signal: AbortSignal.timeout(this.config.timeout)
+      });
+      const endTime = Date.now();
+      
+      endpoint.responseTime = endTime - startTime;
+      this.updateEndpointStatus(
+        endpoint.name, 
+        response.ok ? 'available' : 'unavailable', 
+        endpoint.responseTime
+      );
+      
+      console.log(`Perplexity API Test: ${response.ok ? 'Erfolgreich' : 'Fehlgeschlagen'}, Status: ${response.status}`);
+      return response.ok;
+    } catch (error) {
+      console.error('Perplexity Verbindungstest fehlgeschlagen:', error);
+      this.updateEndpointStatus(endpoint.name, 'unavailable');
+      return false;
+    }
+  }
+
+  // Hilfsmethode zum Setzen eines verfügbaren Endpunkts
+  private _setEndpointAsAvailable(endpoint: ApiEndpoint): ApiEndpoint {
+    console.log(`Endpunkt ${endpoint.name} ist verfügbar`);
+    endpoint.isAvailable = true;
+    this.status.isConnected = true;
+    this.status.currentEndpoint = endpoint;
+    this.status.lastError = null;
+    return endpoint;
   }
   
   /**
@@ -783,18 +887,53 @@ class ApiManagerService {
     }
   }
 
-  // Hilfsmethode zum Überprüfen und Aktualisieren der API-Schlüssel
+  /**
+   * Aktualisiert die API-Schlüssel
+   */
   updateApiKeys(keys: { openai?: string; perplexity?: string }) {
-    if (keys.openai) {
+    if (keys.openai !== undefined) {
       this.apiKeys.openai = keys.openai;
+      // Speichere im localStorage, falls verfügbar
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          if (keys.openai) {
+            localStorage.setItem('openai_api_key', keys.openai);
+          } else {
+            localStorage.removeItem('openai_api_key');
+          }
+        }
+      } catch (e) {
+        console.warn('localStorage nicht verfügbar:', e);
+      }
     }
     
-    if (keys.perplexity) {
+    if (keys.perplexity !== undefined) {
       this.apiKeys.perplexity = keys.perplexity;
+      // Speichere im localStorage, falls verfügbar
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          if (keys.perplexity) {
+            localStorage.setItem('perplexity_api_key', keys.perplexity);
+          } else {
+            localStorage.removeItem('perplexity_api_key');
+          }
+        }
+      } catch (e) {
+        console.warn('localStorage nicht verfügbar:', e);
+      }
     }
     
-    // Nachdem Schlüssel aktualisiert wurden, prüfe Endpunkte erneut
-    return this.findAvailableEndpoint();
+    console.log('API-Schlüssel wurden aktualisiert:', {
+      openai: this.apiKeys.openai ? 'Vorhanden (gekürzt)' : 'Nicht gesetzt',
+      perplexity: this.apiKeys.perplexity ? 'Vorhanden (gekürzt)' : 'Nicht gesetzt'
+    });
+    
+    // Versuche, eine neue Verbindung herzustellen, wenn aktuell keine Verbindung besteht
+    if (!this.status.isConnected) {
+      this.initialize().catch(error => {
+        console.error('Fehler bei der API-Initialisierung nach Schlüsselaktualisierung:', error);
+      });
+    }
   }
 }
 

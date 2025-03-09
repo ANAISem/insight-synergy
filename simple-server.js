@@ -35,27 +35,41 @@ const AI_CONFIG = {
     apiKey: process.env.PERPLEXITY_API_KEY || '',
     model: process.env.PERPLEXITY_MODEL || 'sonar-deep-research',
     baseUrl: 'https://api.perplexity.ai',
-    enabled: false // Noch nicht implementiert
+    enabled: true // Aktiviert
   },
   // Fallback-Modus (wenn keine API-Keys verfügbar oder enabled = false)
   useFallback: process.env.FORCE_FALLBACK === 'true' // Kann durch Umgebungsvariable erzwungen werden
 };
 
-// Überprüfe, ob API-Keys verfügbar sind
-const hasOpenAIKey = AI_CONFIG.openai.apiKey && AI_CONFIG.openai.apiKey.length > 20 && !AI_CONFIG.openai.apiKey.includes('your_api_key_here');
-if (!hasOpenAIKey) {
-  log('OpenAI API-Key nicht gesetzt oder ungültig. Verwende Fallback-Modus.', 'WARN');
-  AI_CONFIG.useFallback = true;
-} else if (AI_CONFIG.useFallback) {
-  log('Fallback-Modus durch Umgebungsvariable erzwungen.', 'WARN');
-} else {
-  log(`OpenAI API-Key gefunden. Live-API-Modus aktiv mit Modell: ${AI_CONFIG.openai.model}`, 'INFO');
-}
-
 // Logging-Funktion
 function log(message, type = 'INFO') {
   const timestamp = new Date().toISOString();
   console.log(`[${timestamp}] [${type}] ${message}`);
+}
+
+// Überprüfe, ob API-Keys verfügbar sind
+const hasOpenAIKey = AI_CONFIG.openai.apiKey && AI_CONFIG.openai.apiKey.length > 20 && !AI_CONFIG.openai.apiKey.includes('your_api_key_here');
+const hasPerplexityKey = AI_CONFIG.perplexity.apiKey && AI_CONFIG.perplexity.apiKey.length > 20 && !AI_CONFIG.perplexity.apiKey.includes('your_api_key_here');
+
+if (!hasOpenAIKey) {
+  log('OpenAI API-Key nicht gesetzt oder ungültig.', 'WARN');
+  AI_CONFIG.openai.enabled = false;
+} else {
+  log(`OpenAI API-Key gefunden. OpenAI-API-Modus aktiv mit Modell: ${AI_CONFIG.openai.model}`, 'INFO');
+}
+
+if (!hasPerplexityKey) {
+  log('Perplexity API-Key nicht gesetzt oder ungültig.', 'WARN');
+  AI_CONFIG.perplexity.enabled = false;
+} else {
+  log(`Perplexity API-Key gefunden. Perplexity-API aktiviert mit Modell: ${AI_CONFIG.perplexity.model}`, 'INFO');
+}
+
+if (!hasOpenAIKey && !hasPerplexityKey) {
+  log('Keine API-Keys verfügbar. Verwende Fallback-Modus.', 'WARN');
+  AI_CONFIG.useFallback = true;
+} else if (AI_CONFIG.useFallback) {
+  log('Fallback-Modus durch Umgebungsvariable erzwungen.', 'WARN');
 }
 
 log('Server startet...', 'STARTUP');
@@ -322,7 +336,7 @@ Wichtig:
         log('Sende Anfrage an OpenAI API für Musteranalyse', 'INFO');
         const promptText = `Analysiere folgenden Text und identifiziere die wichtigsten Muster:\n\n${text}`;
         
-        const apiResponse = await getOpenAICompletion(promptText, systemPrompt, 1200);
+        const apiResponse = await getOpenAIChatCompletion(promptText, systemPrompt, 1200);
         log('OpenAI-Antwort erhalten', 'INFO');
         
         // Versuche, JSON aus der Antwort zu extrahieren
@@ -479,7 +493,7 @@ Wichtig:
         const contextInfo = context ? `\nKontext: ${context}` : '';
         const promptText = `Analysiere folgende Eingabe für den Cognitive Loop und generiere eine optimierte Antwort:\n\n${input}${contextInfo}`;
         
-        const apiResponse = await getOpenAICompletion(promptText, systemPrompt, 1500);
+        const apiResponse = await getOpenAIChatCompletion(promptText, systemPrompt, 1500);
         log('OpenAI-Antwort erhalten', 'INFO');
         
         // Versuche, JSON aus der Antwort zu extrahieren
@@ -733,311 +747,62 @@ app.post(`${API_PREFIX}/expert-debate`, async (req, res) => {
         perspective: 'Pragmatische Sicht auf Machbarkeit und politische Realitäten',
         avatar: '📜'
       }
-    ]; 
+    ];
     
-    const selectedExperts = experts.filter(expert => expertIds.includes(expert.id));
+    // Filtern, falls ein Domain-Parameter angegeben ist
+    const filteredExperts = domain 
+      ? experts.filter(expert => expert.domain.toLowerCase() === domain.toLowerCase()) 
+      : experts;
     
-    // Überprüfe, ob Live-API verwendet werden kann
-    if (!AI_CONFIG.useFallback && hasOpenAIKey) {
-      try {
-        // Erstelle den System-Prompt für die Debatte
-        const expertDescriptions = selectedExperts.map(expert => 
-          `${expert.name} (${expert.avatar}) - ${expert.domain}-Experte: ${expert.specialty}. Perspektive: ${expert.perspective}`
-        ).join('\n');
-        
-        const systemPrompt = `Du bist ein Assistent, der eine tiefgreifende Expertendebatte zu einem bestimmten Thema simuliert. 
-Erstelle eine realistische Debatte zwischen folgenden Experten:
-
-${expertDescriptions}
-
-Die Debatte soll zum Thema "${topic}" stattfinden${context ? ` im Kontext von: ${context}` : ''}.
-Jeder Experte sollte entsprechend seiner Perspektive und seines Fachwissens argumentieren.
-
-Die Ausgabe sollte im folgenden JSON-Format erfolgen:
-{
-  "debateThreads": [
-    {
-      "id": "t1",
-      "expertId": "Experten-ID",
-      "expertName": "Name des Experten",
-      "avatar": "Emoji des Experten",
-      "message": "Nachricht des Experten",
-      "timestamp": "2023-06-15T10:00:00Z",
-      "references": ["Referenz 1", "Referenz 2"]
-    },
-    ...weitere Beiträge
-  ],
-  "insights": [
-    {
-      "title": "Titel der Erkenntnis",
-      "description": "Beschreibung der Erkenntnis",
-      "expert": "Quelle der Erkenntnis (Experte)",
-      "confidence": 0.95 // Zahl zwischen 0 und 1
-    },
-    ...weitere Erkenntnisse
-  ]
-}
-
-Wichtig:
-- Erstelle 5-7 Debattenbeiträge mit einer guten Diskussionsdynamik
-- Stelle sicher, dass jeder ausgewählte Experte mindestens einmal zu Wort kommt
-- Füge relevante, realistische Referenzen hinzu
-- Extrahiere 3-5 wichtige Erkenntnisse aus der Debatte`;
-
-        // API-Anfrage an OpenAI
-        log('Sende Anfrage an OpenAI API für Expertendebatten-Generierung', 'INFO');
-        const promptText = `Generiere eine Expertendebatte zum Thema "${topic}" mit den Experten: ${selectedExperts.map(e => e.name).join(', ')}.`;
-        
-        const apiResponse = await getOpenAICompletion(promptText, systemPrompt, 2000);
-        log('OpenAI-Antwort erhalten', 'INFO');
-        
-        // Versuche, JSON aus der Antwort zu extrahieren
-        let jsonStartIndex = apiResponse.indexOf('{');
-        let jsonEndIndex = apiResponse.lastIndexOf('}') + 1;
-        
-        if (jsonStartIndex === -1 || jsonEndIndex === 0) {
-          throw new Error('Kein gültiges JSON in der API-Antwort gefunden');
-        }
-        
-        const jsonStr = apiResponse.substring(jsonStartIndex, jsonEndIndex);
-        const responseData = JSON.parse(jsonStr);
-        
-        // Stelle sicher, dass die Antwort dem erwarteten Format entspricht
-        if (!responseData.debateThreads || !responseData.insights) {
-          throw new Error('API-Antwort hat nicht das erwartete Format');
-        }
-        
-        // Antwort senden
-        res.json({
-          success: true,
-          message: 'Experten-Debatte erfolgreich generiert',
-          result: {
-            topic,
-            debateThreads: responseData.debateThreads,
-            insights: responseData.insights,
-            context: context || 'Standardkontext für die Debatte',
-            questions: questions || []
-          },
-          metadata: {
-            timestamp: new Date().toISOString(),
-            processingTimeMs: 2000,
-            debateId: 'debate-' + Date.now(),
-            model: AI_CONFIG.openai.model
-          }
-        });
-        
-      } catch (error) {
-        log(`Fehler bei OpenAI-Anfrage für Expertendebatte: ${error.message}`, 'ERROR');
-        // Fallback zu Demo-Antwort
-        AI_CONFIG.useFallback = true;
+    // Antwort senden
+    res.json({
+      success: true,
+      message: 'Experten erfolgreich abgerufen',
+      experts: filteredExperts,
+      count: filteredExperts.length,
+      metadata: {
+        timestamp: new Date().toISOString()
       }
-    }
-    
-    // Fallback-Modus (Demo-Antwort)
-    if (AI_CONFIG.useFallback) {
-      log('Verwende Fallback-Modus für Expertendebatte', 'INFO');
-      
-      // Simuliere Verarbeitungszeit
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Demo-Antwort (unverändert)
-      const debateThreads = [
-        {
-          id: 't1',
-          expertId: 'exp-001',
-          expertName: 'EcoVisionist',
-          avatar: '🌍',
-          message: `Zum Thema "${topic}" möchte ich betonen, dass die ökologischen Aspekte besonders wichtig sind. Wir müssen sicherstellen, dass unsere Lösungen nachhaltig und umweltfreundlich sind.`,
-          timestamp: new Date(Date.now() - 5000).toISOString(),
-          references: ['Nature, 2023', 'Climate Report 2022']
-        },
-        {
-          id: 't2',
-          expertId: 'exp-002',
-          expertName: 'Market Analyst 4.0',
-          avatar: '💰',
-          message: `Ich stimme zu, dass Nachhaltigkeit wichtig ist, aber wir dürfen die wirtschaftlichen Realitäten nicht ignorieren. Implementierungen müssen auch kosteneffizient sein, um Akzeptanz zu finden.`,
-          timestamp: new Date(Date.now() - 4000).toISOString(),
-          references: ['Economic Review, 2023', 'Market Trends Q1 2023']
-        },
-        {
-          id: 't3',
-          expertId: 'exp-003',
-          expertName: 'TechPioneer AI',
-          avatar: '⚙️',
-          message: `Aus technologischer Sicht sehe ich mehrere innovative Ansätze, die beide Perspektiven vereinen könnten. Beispielsweise zeigen neueste Fortschritte in der Materialtechnologie vielversprechende Ergebnisse.`,
-          timestamp: new Date(Date.now() - 3000).toISOString(),
-          references: ['Tech Journal, 2023', 'Innovation Report 2023']
-        },
-        {
-          id: 't4',
-          expertId: 'exp-001',
-          expertName: 'EcoVisionist',
-          avatar: '🌍',
-          message: `Das ist ein interessanter Punkt. Ich würde hinzufügen, dass diese neuen Materialien aus nachhaltigen Quellen stammen müssen, um wirklich umweltfreundlich zu sein.`,
-          timestamp: new Date(Date.now() - 2000).toISOString(),
-          references: ['Sustainability Report, 2023']
-        },
-        {
-          id: 't5',
-          expertId: 'exp-002',
-          expertName: 'Market Analyst 4.0',
-          avatar: '💰',
-          message: `Genau, und die Skalierbarkeit muss auch berücksichtigt werden. Ein theoretisch perfektes Material nützt wenig, wenn es nicht in industriellem Maßstab produziert werden kann.`,
-          timestamp: new Date(Date.now() - 1000).toISOString(),
-          references: ['Production Economics, 2022']
-        }
-      ];
-      
-      // Zusammenfassung der Haupterkenntnisse
-      const insights = [
-        {
-          title: 'Ökologische Perspektive',
-          description: 'Nachhaltigkeit und Umweltschutz sind grundlegende Anforderungen.',
-          expert: 'EcoVisionist',
-          confidence: 0.92
-        },
-        {
-          title: 'Wirtschaftliche Machbarkeit',
-          description: 'Kosteneffizienz und Skalierbarkeit sind entscheidend für den Erfolg.',
-          expert: 'Market Analyst 4.0',
-          confidence: 0.88
-        },
-        {
-          title: 'Technologische Innovation',
-          description: 'Neue Materialien und Technologien könnten beide Perspektiven vereinen.',
-          expert: 'TechPioneer AI',
-          confidence: 0.85
-        }
-      ];
-      
-      // Antwort senden
-      res.json({
-        success: true,
-        message: 'Experten-Debatte erfolgreich generiert (Fallback-Modus)',
-        result: {
-          topic,
-          debateThreads,
-          insights,
-          context: context || 'Standardkontext für die Debatte',
-          questions: questions || []
-        },
-        metadata: {
-          timestamp: new Date().toISOString(),
-          processingTimeMs: 2000,
-          debateId: 'debate-' + Date.now(),
-          mode: 'fallback'
-        }
-      });
-    }
+    });
   } catch (error) {
-    log(`Fehler bei Experten-Debatte: ${error.message}`, 'ERROR');
+    log(`Fehler beim Experten-Debatte-Endpunkt: ${error.message}`, 'ERROR');
     res.status(500).json({
       success: false,
       error: 'Internal Server Error',
-      message: 'Ein Fehler ist bei der Generierung der Experten-Debatte aufgetreten.',
+      message: 'Ein Fehler ist beim Abrufen der Experten aufgetreten.',
       details: DEBUG ? error.message : undefined
     });
   }
 });
 
-// 404-Handler für nicht gefundene Routen
-app.use((req, res) => {
-  log(`404 Not Found: ${req.method} ${req.url}`, 'WARN');
-  res.status(404).json({
-    success: false,
-    error: 'Not Found',
-    message: 'Die angeforderte Ressource wurde nicht gefunden.',
-    path: req.url
-  });
-});
-
-// Globaler Fehlerhandler
-app.use((err, req, res, next) => {
-  const statusCode = err.statusCode || 500;
-  const errorMessage = err.message || 'Ein unerwarteter Fehler ist aufgetreten.';
-  
-  log(`Error ${statusCode}: ${errorMessage}`, 'ERROR');
-  if (err.stack && DEBUG) {
-    log(`Stack: ${err.stack}`, 'DEBUG');
-  }
-  
-  res.status(statusCode).json({
-    success: false,
-    error: statusCode === 500 ? 'Internal Server Error' : err.name || 'Application Error',
-    message: errorMessage,
-    path: req.url,
-    timestamp: new Date().toISOString(),
-    requestId: req.id
-  });
-});
-
-// Server starten
-app.listen(PORT, '0.0.0.0', () => {
-  log(`Server läuft auf http://localhost:${PORT}`, 'STARTUP');
-  log(`API verfügbar unter http://localhost:${PORT}${API_PREFIX}`, 'STARTUP');
-  
-  console.log(`
-╔═══════════════════════════════════════════════════════════════╗
-║            INSIGHT SYNERGY SERVER (OPTIMIZED)                 ║
-╠═══════════════════════════════════════════════════════════════╣
-║ 🚀 Server läuft auf http://localhost:${PORT}                    ║
-║ 📊 API verfügbar unter ${API_PREFIX}                             ║
-║ 🌐 Debug-Modus: ${DEBUG ? 'AKTIVIERT' : 'DEAKTIVIERT'}                                    ║
-║ 💡 Optimierte Version mit verbesserter CORS-Unterstützung      ║
-╚═══════════════════════════════════════════════════════════════╝
-  `);
-});
-
-// Prozess-Fehlerbehandlung für unerwartete Fehler
-process.on('uncaughtException', (error) => {
-  log(`Uncaught Exception: ${error.message}`, 'FATAL');
-  log(error.stack, 'FATAL');
-  // Ordnungsgemäßes Herunterfahren initiieren
-  process.exit(1);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  log(`Unhandled Rejection at: ${promise}, reason: ${reason}`, 'ERROR');
-  // Hier könnte ein geordnetes Herunterfahren implementiert werden
-});
-
-log('Server-Initialisierung abgeschlossen', 'STARTUP');
-
 // Axios-Instance für OpenAI API-Aufrufe
-const openaiAPI = axios.create({
+const openAIAPI = axios.create({
   baseURL: AI_CONFIG.openai.baseUrl,
   headers: {
     'Authorization': `Bearer ${AI_CONFIG.openai.apiKey}`,
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'OpenAI-Version': '2023-06-01'
   },
   timeout: 60000 // 60 Sekunden Timeout
 });
 
 // Hilfsfunktion für OpenAI API-Anfragen
-async function getOpenAICompletion(prompt, systemMessage = null, maxTokens = 1000) {
+async function getOpenAIChatCompletion(prompt, systemMessage = null, maxTokens = 1000) {
   try {
     if (!hasOpenAIKey || !AI_CONFIG.openai.enabled) {
       throw new Error('OpenAI API nicht konfiguriert oder deaktiviert');
     }
 
-    const messages = [];
-    if (systemMessage) {
-      messages.push({ role: 'system', content: systemMessage });
-    }
-    messages.push({ role: 'user', content: prompt });
-
-    const response = await openaiAPI.post('/chat/completions', {
+    const response = await openAIAPI.post('/v1/chat/completions', {
       model: AI_CONFIG.openai.model,
-      messages: messages,
-      max_tokens: maxTokens,
-      temperature: 0.7,
-      top_p: 1.0,
-      frequency_penalty: 0.0,
-      presence_penalty: 0.0
+      messages: [
+        { role: 'system', content: systemMessage || '' },
+        { role: 'user', content: prompt }
+      ],
+      max_tokens: maxTokens
     });
 
-    if (response.data && response.data.choices && response.data.choices.length > 0) {
+    if (response.data && response.data.choices && response.data.choices.length > 0 && response.data.choices[0].message && response.data.choices[0].message.content) {
       return response.data.choices[0].message.content;
     } else {
       throw new Error('Unerwartetes Format der OpenAI-Antwort');
@@ -1049,4 +814,4 @@ async function getOpenAICompletion(prompt, systemMessage = null, maxTokens = 100
     }
     throw error;
   }
-} 
+}

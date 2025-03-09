@@ -67,8 +67,8 @@ export const useCognitiveState = (): CognitiveStateReturn => {
   const [connectionStatus, setConnectionStatus] = useState<'online' | 'offline' | 'connecting'>('connecting');
   const [lastError, setLastError] = useState<string | null>(null);
   
-  // Verwende REACT_APP_API_URL aus der Umgebung oder Fallback auf den neuen Port 8081
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8081/api';
+  // Verwende REACT_APP_API_URL aus der Umgebung oder Fallback auf den neuen Port 8080
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
   
   console.log('API URL:', API_URL); // Debug-Ausgabe
 
