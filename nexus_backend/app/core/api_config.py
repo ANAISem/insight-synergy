@@ -1,6 +1,7 @@
 import os
 from typing import Optional, List
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
+from pydantic import Extra
 
 class APIConfig(BaseSettings):
     """API-Konfiguration für externe Dienste"""
@@ -47,8 +48,10 @@ class APIConfig(BaseSettings):
     COMBINE_PERPLEXITY_WITH_OPENAI: bool = os.getenv("COMBINE_PERPLEXITY_WITH_OPENAI", "true").lower() == "true"
     MAX_CONTEXT_LENGTH: int = int(os.getenv("MAX_CONTEXT_LENGTH", "12000"))
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = {
+        "env_file": ".env",
+        "case_sensitive": True,
+        "extra": "allow"
+    }
 
 api_config = APIConfig() 

@@ -12,10 +12,10 @@ from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
-from ...utils.adaptive_debug import (
+from nexus_backend.utils.adaptive_debug import (
     debugger, RootCauseAnalyzer, SelfHealingCode, get_debug_report
 )
-from ...utils.logging import get_logger
+from nexus_backend.utils.logging import get_logger
 
 logger = get_logger("adaptive_debug_middleware")
 
@@ -76,6 +76,8 @@ class AdaptiveDebugMiddleware(BaseHTTPMiddleware):
                     f"(Durchschnitt: {stats['avg_time']:.2f}s)"
                 )
             
+            logger.debug(f"Route {route_key} ausgeführt in {execution_time:.2f}s")
+            
             return response
             
         except Exception as e:
@@ -94,14 +96,14 @@ class AdaptiveDebugMiddleware(BaseHTTPMiddleware):
             fix_result = self.self_healing.try_auto_fix(error_id)
             
             if fix_result:
-                logger.info(f"Automatischer Fix für Route {route_key} registriert.")
+                logger.info(f"Automatischer Fix für Route {route_key} angewendet.")
             
             # Wirf die ursprüngliche Exception weiter, um standardmäßige Fehlerbehandlung zu ermöglichen
             raise
             
         finally:
             # Hier könnten weitere Clean-up-Operationen stattfinden
-            pass
+            logger.debug(f"Request {route_key} abgeschlossen.")
 
 
 class RequestContextMiddleware(BaseHTTPMiddleware):

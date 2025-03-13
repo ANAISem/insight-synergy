@@ -1,14 +1,16 @@
-# -*- coding: utf-8 -*-
-# app/__init__.py
-# Initialisierungsdatei für das app-Modul
+"""
+Direkte Implementierung der Experten-Profile-Endpunkte für Insight Synergy.
 
-from fastapi import FastAPI
-import logging
-import os
+Diese Datei enthält einfache Implementierungen, die statische Daten zurückgeben,
+um die Frontend-Anwendung zu unterstützen.
+"""
+
+from fastapi import APIRouter, Query
 from typing import List, Dict, Any, Optional
 import random
 
-logger = logging.getLogger(__name__)
+# Router für Experten-Profile-Endpunkte
+profiles_router = APIRouter()
 
 # Vordefinierte Expertenprofile
 EXPERT_PROFILES = [
@@ -98,50 +100,25 @@ EXPERT_PROFILES = [
     }
 ]
 
-def create_app() -> FastAPI:
-    """
-    Erstellt und konfiguriert die FastAPI-Anwendung.
-    """
-    app = FastAPI(
-        title="Nexus Backend",
-        description="Backend-API für die Insight Synergy App",
-        version="1.0.0",
-    )
-    
-    # Health-Check-Endpunkt für Verbindungstests
-    @app.get("/health")
-    async def health_check():
-        return {"status": "ok", "version": "1.0.0"}
-    
-    # Direkte Expert-Profile-Endpunkte für die Frontend-Integration
-    @app.get("/api/cognitive/profiles")
-    async def get_expert_profiles():
-        """Gibt eine Liste vordefinierter Expertenprofile zurück."""
-        return {
-            "experts": EXPERT_PROFILES,
-            "count": len(EXPERT_PROFILES)
-        }
+@profiles_router.get("/profiles")
+async def get_expert_profiles():
+    """Gibt eine Liste vordefinierter Expertenprofile zurück."""
+    return {
+        "experts": EXPERT_PROFILES,
+        "count": len(EXPERT_PROFILES)
+    }
 
-    @app.get("/api/cognitive/suggested")
-    async def get_suggested_experts(
-        topic: str,
-        count: int = 3
-    ):
-        """Schlägt geeignete Experten für ein bestimmtes Thema vor."""
-        # Für diese Implementierung wählen wir einfach zufällig `count` Experten aus
-        suggested_experts = random.sample(EXPERT_PROFILES, min(count, len(EXPERT_PROFILES)))
-        
-        return {
-            "topic": topic,
-            "experts": suggested_experts,
-            "count": len(suggested_experts)
-        }
+@profiles_router.get("/suggested")
+async def get_suggested_experts(
+    topic: str = Query(..., description="Das Thema, für das Experten vorgeschlagen werden sollen"),
+    count: int = Query(3, description="Anzahl der gewünschten Experten")
+):
+    """Schlägt geeignete Experten für ein bestimmtes Thema vor."""
+    # Für diese Implementierung wählen wir einfach zufällig `count` Experten aus
+    suggested_experts = random.sample(EXPERT_PROFILES, min(count, len(EXPERT_PROFILES)))
     
-    # Registriere weitere Routen
-    from .main import app as main_app
-    app.mount("/api", main_app)
-    
-    # Debug-Info
-    logger.info(f"Anwendung gestartet mit Routen: {app.routes}")
-    
-    return app 
+    return {
+        "topic": topic,
+        "experts": suggested_experts,
+        "count": len(suggested_experts)
+    } 

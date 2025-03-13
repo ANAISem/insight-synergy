@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Nexus-Backend Hauptpaket.
 Ein System für semantische Suche und Wissensmanagement mit Vector-DB und RAG.

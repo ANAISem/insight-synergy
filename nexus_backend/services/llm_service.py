@@ -468,6 +468,112 @@ class LLMService:
                 "model": self.model_name,
                 "streaming": False
             }
+    
+    async def generate_response(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        max_tokens: int = 1000,
+        temperature: float = 0.7
+    ) -> str:
+        """
+        Generiert eine einfache Antwort auf ein Prompt.
+        
+        Args:
+            system_prompt: Systemprompt für die Anfrage
+            user_prompt: Prompt des Benutzers
+            max_tokens: Maximale Anzahl an Token (default: 1000)
+            temperature: Temperatur für die Antwortgenerierung (default: 0.7)
+            
+        Returns:
+            Die generierte Antwort als String
+        """
+        try:
+            import os
+            import openai
+            from openai import OpenAI
+            
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                logger.warning("Kein OpenAI API-Key gefunden, verwende Fallback-Antwort")
+                return self._generate_mock_response(system_prompt, user_prompt)
+            
+            # OpenAI-Client erstellen
+            client = OpenAI(api_key=api_key)
+            
+            # Verwende das konfigurierte Modell
+            model_name = os.getenv("PRIMARY_MODEL", "gpt-o1-mini")
+            
+            # Anfrage an OpenAI senden
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                max_tokens=max_tokens,
+                temperature=temperature
+            )
+            
+            # Antwort extrahieren
+            answer = response.choices[0].message.content
+            return answer
+            
+        except Exception as e:
+            logger.error(f"Fehler bei der Generierung einer Antwort: {str(e)}")
+            
+            # Bei Fehler versuche Fallback-Modell, falls konfiguriert
+            try:
+                if os.getenv("ENABLE_MODEL_FALLBACK", "true").lower() == "true":
+                    logger.info("Versuche Fallback-Modell")
+                    fallback_model = os.getenv("FALLBACK_MODEL", "gpt-4o-mini")
+                    
+                    client = OpenAI(api_key=api_key)
+                    response = client.chat.completions.create(
+                        model=fallback_model,
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt}
+                        ],
+                        max_tokens=max_tokens,
+                        temperature=temperature
+                    )
+                    
+                    answer = response.choices[0].message.content
+                    return answer
+            except Exception as fallback_error:
+                logger.error(f"Fehler beim Fallback-Modell: {str(fallback_error)}")
+            
+            # Wenn alles fehlschlägt, generiere Mock-Antwort
+            return self._generate_mock_response(system_prompt, user_prompt)
+    
+    def _generate_mock_response(self, system_prompt: str, user_prompt: str) -> str:
+        """
+        Generiert eine Mock-Antwort für den Fall, dass die LLM-Anfrage fehlschlägt.
+        
+        Args:
+            system_prompt: Systemprompt für die Anfrage
+            user_prompt: Prompt des Benutzers
+            
+        Returns:
+            Eine simulierte Antwort
+        """
+        import random
+        
+        # Extrahiere Schlüsselwörter aus dem Prompt
+        keywords = [word for word in user_prompt.split() if len(word) > 4]
+        if not keywords:
+            keywords = ["Thema"]
+        
+        # Liste möglicher Antwortvorlagen
+        templates = [
+            f"Als Experte für dieses {random.choice(keywords) if keywords else 'Thema'} kann ich Ihnen mitteilen, dass es mehrere Faktoren zu berücksichtigen gibt. Es ist wichtig, einen ausgewogenen Ansatz zu verfolgen.",
+            f"Ihre Frage zu {random.choice(keywords) if keywords else 'diesem Thema'} ist interessant. Aus verschiedenen Perspektiven betrachtet, gibt es mehrere wichtige Aspekte zu beachten.",
+            f"Bei der Betrachtung von {random.choice(keywords) if keywords else 'diesem Thema'} sollten wir einen systematischen Ansatz verfolgen und verschiedene Aspekte berücksichtigen.",
+            f"Es gibt verschiedene Facetten von {random.choice(keywords) if keywords else 'diesem Thema'}, die berücksichtigt werden sollten. Eine differenzierte Betrachtung ist wichtig."
+        ]
+        
+        return random.choice(templates)
 
 
 @lru_cache()

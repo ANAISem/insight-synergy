@@ -16,6 +16,8 @@ from services.auth_service import AuthService
 from services.llm_service import LLMService
 from services.experts_service import ExpertsService
 from services.discussion_service import DiscussionService
+from services.fact_checking_service import FactCheckingService
+from services.cognitive_service import CognitiveService
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +27,8 @@ _auth_service = None
 _llm_service = None
 _experts_service = None
 _discussion_service = None
+_fact_checking_service = None
+_cognitive_service = None
 
 SECRET_KEY = "your_secret_key"
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -149,4 +153,60 @@ def get_discussion_service(
             vector_db=vector_db,
             experts_service=experts_service
         )
-    return _discussion_service 
+    return _discussion_service
+
+def get_fact_checking_service(
+    llm_service: Annotated[LLMService, Depends(get_llm_service)]
+) -> FactCheckingService:
+    """
+    Gibt eine Instanz des FactCheckingService zurück, der für Faktenchecks verwendet wird.
+    Stellt sicher, dass nur eine Instanz erstellt wird (Singleton).
+
+    Args:
+        llm_service: LLM-Service für die Analyse von Aussagen
+
+    Returns:
+        FactCheckingService-Instanz
+    """
+    global _fact_checking_service
+    
+    if _fact_checking_service is None:
+        logger.info("Initialisiere FactCheckingService")
+        # Hier Perplexity API integrieren, wenn vorhanden
+        try:
+            from utils.perplexity_api import get_perplexity_api
+            perplexity_api = get_perplexity_api()
+            if perplexity_api:
+                logger.info("Perplexity API erfolgreich initialisiert")
+            else:
+                logger.warning("Perplexity API nicht verfügbar, verwende LLM-Fallback für Faktenchecks")
+        except Exception as e:
+            logger.warning(f"Fehler bei der Initialisierung der Perplexity API: {str(e)}")
+            perplexity_api = None
+            
+        _fact_checking_service = FactCheckingService(llm_service, perplexity_api)
+        
+    return _fact_checking_service
+
+def get_cognitive_service(
+    llm_service: Annotated[LLMService, Depends(get_llm_service)],
+    experts_service: Annotated[ExpertsService, Depends(get_experts_service)]
+) -> CognitiveService:
+    """
+    Gibt eine Instanz des CognitiveService zurück, der für kognitive Analysen verwendet wird.
+    Stellt sicher, dass nur eine Instanz erstellt wird (Singleton).
+
+    Args:
+        llm_service: LLM-Service für die Analyse von Benutzerinteraktionen
+        experts_service: Experten-Service für Expertenempfehlungen
+
+    Returns:
+        CognitiveService-Instanz
+    """
+    global _cognitive_service
+    
+    if _cognitive_service is None:
+        logger.info("Initialisiere CognitiveService")
+        _cognitive_service = CognitiveService(llm_service, experts_service)
+        
+    return _cognitive_service 

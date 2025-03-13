@@ -12,21 +12,33 @@ import {
   Paper,
   LinearProgress,
   Chip,
-  IconButton
+  IconButton,
+  Breadcrumbs,
+  Link
 } from '@mui/material';
 import { 
   Refresh as RefreshIcon,
   Analytics as AnalyticsIcon,
   BugReport as BugReportIcon,
   Build as BuildIcon,
-  SignalWifiOff as OfflineIcon
+  SignalWifiOff as OfflineIcon,
+  Home as HomeIcon,
+  Settings as SettingsIcon,
+  Dashboard as DashboardIcon,
+  Forum as ForumIcon
 } from '@mui/icons-material';
 import { useCognitiveState } from '../hooks/useCognitiveState';
 import SystemDashboard from './system-dashboard/SystemDashboard';
 import NexusPanel from './nexus/NexusPanel';
 import CognitiveLoopPanel from './cognitive-loop/CognitiveLoopPanel';
 import ExpertDebatePanel from './insight-core/ExpertDebatePanel';
+import LiveExpertDebatePanel from './insight-core/LiveExpertDebatePanel';
+import { WelcomePage } from './welcome';
+import { ProjectCreation, ProjectOverview } from './project-management';
+import { AnalysisPanel, KnowledgeExtraction } from './analysis';
+import { View } from '../types';
 
+// Definiere die möglichen Ansichten
 type Pattern = {
   id: string;
   type: string;
@@ -35,7 +47,14 @@ type Pattern = {
 };
 
 const MainView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState(0);
+  // Zustandsverwaltung für die Navigation
+  const [currentView, setCurrentView] = useState<View>('welcome');
+  const [activeProject, setActiveProject] = useState<string | null>(null);
+  const [breadcrumbs, setBreadcrumbs] = useState<{label: string, view: View}[]>([
+    { label: 'Startseite', view: 'welcome' }
+  ]);
+  
+  // Zustandsverwaltung für die Musteranalyse
   const [patternText, setPatternText] = useState('');
   const [patterns, setPatterns] = useState<Pattern[]>([]);
   const [expertQuestion, setExpertQuestion] = useState('');
@@ -49,35 +68,84 @@ const MainView: React.FC = () => {
 
   // Synchronisiere apiStatus mit connectionStatus aus dem Hook
   useEffect(() => {
-    // Mapping zwischen den Status-Werten
-    const statusMap: Record<string, 'online' | 'offline' | 'checking'> = {
-      'online': 'online',
-      'offline': 'offline',
-      'connecting': 'checking'
-    };
-    
-    setApiStatus(statusMap[connectionStatus]);
-    
-    // Zeige eine Benachrichtigung, wenn sich der Status ändert
     if (connectionStatus === 'online') {
-      setShowNetworkStatus(true);
+      setApiStatus('online');
     } else if (connectionStatus === 'offline') {
-      setShowNetworkStatus(true);
+      setApiStatus('offline');
+    } else {
+      setApiStatus('checking');
     }
     
-    // Übernehme Fehler aus dem Hook
-    if (lastError) {
-      setError(lastError);
+    if (connectionStatus === 'offline' && !lastError) {
+      setShowNetworkStatus(true);
     }
   }, [connectionStatus, lastError]);
 
-  // Zeige Status bei Komponenten-Initialisierung
   useEffect(() => {
     console.log('MainView initialisiert, Backend-Verbindung:', connectionStatus);
   }, [connectionStatus]);
 
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
-    setActiveTab(newValue);
+  // Navigation zu einer bestimmten Ansicht
+  const navigateTo = (view: View, addToHistory = true) => {
+    setCurrentView(view);
+    
+    if (addToHistory) {
+      // Aktualisiere die Breadcrumbs
+      const viewLabels: Record<View, string> = {
+        'welcome': 'Startseite',
+        'projectOverview': 'Projekte',
+        'projectCreation': 'Neues Projekt',
+        'cognitive-loop': 'Cognitive Loop',
+        'nexus': 'The Nexus',
+        'expert-debate': 'Experten-Debatte',
+        'system-dashboard': 'System-Status',
+        'analysis': 'Textanalyse',
+        'knowledge-extraction': 'Wissensextraktion',
+        'live-expert-debate': 'Live Experten-Debatte'
+      };
+      
+      // Finde den Index der aktuellen Ansicht in den Breadcrumbs
+      const currentIndex = breadcrumbs.findIndex(crumb => crumb.view === currentView);
+      
+      if (currentIndex >= 0) {
+        // Wenn die aktuelle Ansicht bereits in den Breadcrumbs ist, entferne alle nachfolgenden
+        setBreadcrumbs([...breadcrumbs.slice(0, currentIndex + 1), { label: viewLabels[view], view }]);
+      } else {
+        // Sonst füge die neue Ansicht hinzu
+        setBreadcrumbs([...breadcrumbs, { label: viewLabels[view], view }]);
+      }
+    }
+  };
+
+  // Zurück-Navigation
+  const navigateBack = () => {
+    if (breadcrumbs.length > 1) {
+      const newBreadcrumbs = [...breadcrumbs];
+      newBreadcrumbs.pop();
+      setBreadcrumbs(newBreadcrumbs);
+      setCurrentView(newBreadcrumbs[newBreadcrumbs.length - 1].view);
+    }
+  };
+
+  // Breadcrumb-Navigation
+  const navigateToBreadcrumb = (index: number) => {
+    if (index < breadcrumbs.length) {
+      setBreadcrumbs(breadcrumbs.slice(0, index + 1));
+      setCurrentView(breadcrumbs[index].view);
+    }
+  };
+
+  // Handler für die Projekterstellung
+  const handleProjectCreated = (projectId: string) => {
+    console.log('Neues Projekt erstellt:', projectId);
+    setActiveProject(projectId);
+  };
+
+  // Handler für das Öffnen eines Projekts
+  const handleSelectProject = (projectId: string) => {
+    console.log('Projekt ausgewählt:', projectId);
+    setActiveProject(projectId);
+    // Hier könnte später zur Projektdetailansicht navigiert werden
   };
 
   const handlePatternAnalysis = async () => {
@@ -126,27 +194,24 @@ const MainView: React.FC = () => {
   };
 
   return (
-    <Box sx={{ width: '100%', height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      {/* Statusleiste für API-Verbindung */}
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+      {/* Header mit Verbindungsstatus */}
       <Box 
         sx={{ 
-          width: '100%', 
-          py: 0.5, 
-          px: 2, 
+          p: 1, 
           bgcolor: apiStatus === 'online' ? 'success.main' : apiStatus === 'offline' ? 'error.main' : 'warning.main',
           color: 'white',
-          display: 'flex',
+          display: showNetworkStatus ? 'flex' : 'none',
           justifyContent: 'space-between',
-          alignItems: 'center',
-          transition: 'background-color 0.3s ease'
+          alignItems: 'center'
         }}
       >
-        <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+        <Typography variant="body2">
           {apiStatus === 'online' 
-            ? 'API-Verbindung: Aktiv' 
+            ? 'Verbunden mit dem Backend-Server' 
             : apiStatus === 'offline' 
-              ? 'API-Verbindung: Nicht verfügbar' 
-              : 'API-Verbindung: Wird überprüft...'}
+              ? 'Keine Verbindung zum Backend-Server' 
+              : 'Überprüfe Verbindung...'}
         </Typography>
         <IconButton 
           size="small" 
@@ -162,53 +227,136 @@ const MainView: React.FC = () => {
         </IconButton>
       </Box>
 
-      {/* Tabs Navigation */}
-      <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-        <Tabs value={activeTab} onChange={handleTabChange} aria-label="insight synergy tabs">
-          <Tab label="Cognitive Loop" icon={<AnalyticsIcon />} iconPosition="start" />
-          <Tab label="The Nexus" icon={<BuildIcon />} iconPosition="start" />
-          <Tab label="Experten Debatte" icon={<BugReportIcon />} iconPosition="start" />
-          <Tab label="System Status" icon={<RefreshIcon />} iconPosition="start" />
-        </Tabs>
+      {/* Breadcrumb-Navigation */}
+      <Box sx={{ p: 2, bgcolor: 'background.paper' }}>
+        <Breadcrumbs aria-label="breadcrumb">
+          {breadcrumbs.map((crumb, index) => (
+            <Link
+              key={index}
+              color="inherit"
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                navigateToBreadcrumb(index);
+              }}
+              sx={{ 
+                display: 'flex', 
+                alignItems: 'center',
+                fontWeight: index === breadcrumbs.length - 1 ? 'bold' : 'normal'
+              }}
+            >
+              {index === 0 && <HomeIcon sx={{ mr: 0.5 }} fontSize="small" />}
+              {crumb.label}
+            </Link>
+          ))}
+        </Breadcrumbs>
       </Box>
       
-      {/* Hauptteil der Anwendung */}
-      <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
-        {/* Tab 1: Cognitive Loop */}
-        <div role="tabpanel" hidden={activeTab !== 0}>
-          {activeTab === 0 && (
-            <CognitiveLoopPanel 
-              apiUrl={process.env.REACT_APP_API_URL || 'http://localhost:8081/api'} 
-              isConnected={apiStatus === 'online'} 
-            />
-          )}
-        </div>
-
-        {/* Tab 2: The Nexus */}
-        <div role="tabpanel" hidden={activeTab !== 1}>
-          {activeTab === 1 && (
-            <NexusPanel 
-              apiUrl={process.env.REACT_APP_API_URL || 'http://localhost:8081/api'} 
-              isConnected={apiStatus === 'online'} 
-            />
-          )}
-        </div>
-
-        {/* Tab 3: Experten Debatte */}
-        <div role="tabpanel" hidden={activeTab !== 2}>
-          {activeTab === 2 && (
-            <ExpertDebatePanel 
-              apiUrl={process.env.REACT_APP_API_URL || 'http://localhost:8081/api'} 
-              isConnected={apiStatus === 'online'} 
-            />
-          )}
-        </div>
-
-        {/* Tab 4: System Status */}
-        <div role="tabpanel" hidden={activeTab !== 3}>
-          {activeTab === 3 && <SystemDashboard />}
-        </div>
+      {/* Hauptinhalt basierend auf der aktuellen Ansicht */}
+      <Box sx={{ flexGrow: 1, overflow: 'auto', p: 0 }}>
+        {/* Startseite */}
+        {currentView === 'welcome' && (
+          <WelcomePage onNavigate={navigateTo} />
+        )}
+        
+        {/* Projektübersicht */}
+        {currentView === 'projectOverview' && (
+          <ProjectOverview 
+            onNavigate={navigateTo}
+            onSelectProject={handleSelectProject}
+          />
+        )}
+        
+        {/* Projekterstellung */}
+        {currentView === 'projectCreation' && (
+          <ProjectCreation 
+            onNavigate={navigateTo}
+            onProjectCreated={handleProjectCreated}
+          />
+        )}
+        
+        {/* Textanalyse */}
+        {currentView === 'analysis' && (
+          <AnalysisPanel 
+            projectId={activeProject || undefined}
+            apiUrl={process.env.REACT_APP_API_URL || 'http://localhost:8000/api'} 
+            isConnected={apiStatus === 'online'} 
+          />
+        )}
+        
+        {/* Wissensextraktion */}
+        {currentView === 'knowledge-extraction' && (
+          <KnowledgeExtraction 
+            projectId={activeProject || undefined}
+            apiUrl={process.env.REACT_APP_API_URL || 'http://localhost:8000/api'} 
+            isConnected={apiStatus === 'online'} 
+          />
+        )}
+        
+        {/* Cognitive Loop */}
+        {currentView === 'cognitive-loop' && (
+          <CognitiveLoopPanel 
+            apiUrl={process.env.REACT_APP_API_URL || 'http://localhost:8000/api'} 
+            isConnected={apiStatus === 'online'} 
+          />
+        )}
+        
+        {/* The Nexus */}
+        {currentView === 'nexus' && (
+          <NexusPanel 
+            apiUrl={process.env.REACT_APP_API_URL || 'http://localhost:8000/api'} 
+            isConnected={apiStatus === 'online'} 
+          />
+        )}
+        
+        {/* Experten-Debatte */}
+        {currentView === 'expert-debate' && (
+          <ExpertDebatePanel 
+            apiUrl={process.env.REACT_APP_API_URL || 'http://localhost:8000/api'} 
+            isConnected={apiStatus === 'online'} 
+          />
+        )}
+        
+        {/* Erweiterte Experten-Debatte */}
+        {currentView === 'live-expert-debate' && (
+          <LiveExpertDebatePanel 
+            apiUrl={process.env.REACT_APP_API_URL || 'http://localhost:8000/api'} 
+            isConnected={apiStatus === 'online'} 
+            projectId={activeProject || undefined}
+          />
+        )}
+        
+        {/* System-Status */}
+        {currentView === 'system-dashboard' && (
+          <SystemDashboard />
+        )}
       </Box>
+      
+      {/* Footer-Navigation für die Hauptfunktionen */}
+      {(currentView === 'cognitive-loop' || currentView === 'nexus' || currentView === 'expert-debate' || currentView === 'live-expert-debate') && (
+        <Box sx={{ borderTop: 1, borderColor: 'divider', p: 1, bgcolor: 'background.paper' }}>
+          <Tabs 
+            value={
+              currentView === 'cognitive-loop' ? 0 : 
+              currentView === 'nexus' ? 1 : 
+              currentView === 'expert-debate' ? 2 :
+              currentView === 'live-expert-debate' ? 3 : 4
+            } 
+            onChange={(_, newValue) => {
+              const views: View[] = ['cognitive-loop', 'nexus', 'expert-debate', 'live-expert-debate', 'system-dashboard'];
+              navigateTo(views[newValue]);
+            }}
+            variant="scrollable"
+            scrollButtons="auto"
+          >
+            <Tab label="Cognitive Loop" icon={<AnalyticsIcon />} iconPosition="start" />
+            <Tab label="The Nexus" icon={<BuildIcon />} iconPosition="start" />
+            <Tab label="Experten Debatte" icon={<BugReportIcon />} iconPosition="start" />
+            <Tab label="Live Debatte" icon={<ForumIcon />} iconPosition="start" />
+            <Tab label="System Status" icon={<DashboardIcon />} iconPosition="start" />
+          </Tabs>
+        </Box>
+      )}
     </Box>
   );
 };

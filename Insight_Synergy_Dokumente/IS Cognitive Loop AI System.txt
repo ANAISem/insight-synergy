@@ -9,7 +9,7 @@ Analysiert die Interaktion im Hintergrund, ohne den Nutzer warten zu lassen
 GET-Methode zum Abrufen von Interaktionen:
 Ermöglicht das Filtern nach Interaktionstyp
 Unterstützt Paginierung durch einen Limit-Parameter
-Sortiert die Ergebnisse nach Erstellungsdatum
+Sortiert die Er      gebnisse nach Erstellungsdatum
 Intelligente Musteranalyse:
 Identifiziert Denkmuster wie "Analytisches Denken" oder "Kreatives Denken"
 Erkennt Interessensgebiete wie "Künstliche Intelligenz" oder "Datenanalyse"

@@ -1,0 +1,49 @@
+
+> frontend@0.1.0 start
+> react-scripts start
+
+(node:9429) [DEP_WEBPACK_DEV_SERVER_ON_AFTER_SETUP_MIDDLEWARE] DeprecationWarning: 'onAfterSetupMiddleware' option is deprecated. Please use the 'setupMiddlewares' option.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:9429) [DEP_WEBPACK_DEV_SERVER_ON_BEFORE_SETUP_MIDDLEWARE] DeprecationWarning: 'onBeforeSetupMiddleware' option is deprecated. Please use the 'setupMiddlewares' option.
+Starting the development server...
+
+Compiled with warnings.
+
+[eslint] 
+src/components/insight-core/LiveExpertDebatePanel.tsx
+  Line 8:3:     'Stack' is defined but never used                                                                                                         @typescript-eslint/no-unused-vars
+  Line 22:3:    'ListItemAvatar' is defined but never used                                                                                                @typescript-eslint/no-unused-vars
+  Line 25:3:    'Tooltip' is defined but never used                                                                                                       @typescript-eslint/no-unused-vars
+  Line 28:3:    'Dialog' is defined but never used                                                                                                        @typescript-eslint/no-unused-vars
+  Line 29:3:    'DialogTitle' is defined but never used                                                                                                   @typescript-eslint/no-unused-vars
+  Line 30:3:    'DialogContent' is defined but never used                                                                                                 @typescript-eslint/no-unused-vars
+  Line 31:3:    'DialogActions' is defined but never used                                                                                                 @typescript-eslint/no-unused-vars
+  Line 46:11:   'InfoIcon' is defined but never used                                                                                                      @typescript-eslint/no-unused-vars
+  Line 181:6:   React Hook useEffect has missing dependencies: 'loadExperts' and 'testApiConnection'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  Line 206:6:   React Hook useEffect has a missing dependency: 'autoScroll'. Either include it or remove the dependency array                             react-hooks/exhaustive-deps
+  Line 782:13:  'previousMessages' is assigned a value but never used                                                                                     @typescript-eslint/no-unused-vars
+  Line 977:9:   'generateInsight' is assigned a value but never used                                                                                      @typescript-eslint/no-unused-vars
+  Line 1023:9:  'fallbackInsightGeneration' is assigned a value but never used                                                                            @typescript-eslint/no-unused-vars
+
+Search for the keywords to learn more about each warning.
+To ignore, add // eslint-disable-next-line to the line before.
+
+WARNING in [eslint] 
+src/components/insight-core/LiveExpertDebatePanel.tsx
+  Line 8:3:     'Stack' is defined but never used                                                                                                         @typescript-eslint/no-unused-vars
+  Line 22:3:    'ListItemAvatar' is defined but never used                                                                                                @typescript-eslint/no-unused-vars
+  Line 25:3:    'Tooltip' is defined but never used                                                                                                       @typescript-eslint/no-unused-vars
+  Line 28:3:    'Dialog' is defined but never used                                                                                                        @typescript-eslint/no-unused-vars
+  Line 29:3:    'DialogTitle' is defined but never used                                                                                                   @typescript-eslint/no-unused-vars
+  Line 30:3:    'DialogContent' is defined but never used                                                                                                 @typescript-eslint/no-unused-vars
+  Line 31:3:    'DialogActions' is defined but never used                                                                                                 @typescript-eslint/no-unused-vars
+  Line 46:11:   'InfoIcon' is defined but never used                                                                                                      @typescript-eslint/no-unused-vars
+  Line 181:6:   React Hook useEffect has missing dependencies: 'loadExperts' and 'testApiConnection'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  Line 206:6:   React Hook useEffect has a missing dependency: 'autoScroll'. Either include it or remove the dependency array                             react-hooks/exhaustive-deps
+  Line 782:13:  'previousMessages' is assigned a value but never used                                                                                     @typescript-eslint/no-unused-vars
+  Line 977:9:   'generateInsight' is assigned a value but never used                                                                                      @typescript-eslint/no-unused-vars
+  Line 1023:9:  'fallbackInsightGeneration' is assigned a value but never used                                                                            @typescript-eslint/no-unused-vars
+
+webpack compiled with 1 warning
+No issues found.
+The build failed because the process exited too early. This probably means the system ran out of memory or someone called `kill -9` on the process.

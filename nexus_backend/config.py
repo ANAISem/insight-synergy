@@ -7,6 +7,7 @@ import os
 from functools import lru_cache
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
+from typing import List
 
 # Lade Umgebungsvariablen aus .env-Datei
 load_dotenv()
@@ -27,7 +28,11 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
     debug: bool = True  # Im Produktionsbetrieb auf False setzen
-    allowed_origins: list = ["http://localhost:3000", "http://localhost:5173", "http://localhost:8080"]
+    ALLOWED_ORIGINS_STR: str = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173,http://localhost:8080")
+    
+    @property
+    def CORS_ORIGINS(self) -> List[str]:
+        return [origin.strip() for origin in self.ALLOWED_ORIGINS_STR.split(",")]
     
     # LLM-Einstellungen
     llm_provider: str = "openai"  # openai, huggingface, local
@@ -62,10 +67,12 @@ class Settings(BaseSettings):
     language_detection: bool = True
     default_language: str = "de"
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "case_sensitive": False,
+        "extra": "allow"
+    }
 
 
 @lru_cache()

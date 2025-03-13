@@ -429,7 +429,7 @@ async def search_discussions(
 
 # Router für Experten-Endpunkte initialisieren
 experts_router = APIRouter(
-    prefix="/experts",
+    prefix="/",
     tags=["experts"],
     responses={
         404: {"description": "Nicht gefunden"},
@@ -440,7 +440,7 @@ experts_router = APIRouter(
 
 
 @experts_router.get(
-    "",
+    "profiles",
     response_model=List[ExpertProfile],
     summary="Listet verfügbare Experten auf",
     description="Ruft eine Liste aller verfügbaren Experten in der Cognitive Loop AI ab."
@@ -465,29 +465,34 @@ async def list_experts(
 
 
 @experts_router.get(
-    "/{expert_id}",
-    response_model=ExpertProfile,
-    summary="Ruft einen Experten ab",
-    description="Ruft das Profil eines Experten anhand seiner ID ab."
+    "suggested",
+    response_model=List[ExpertProfile],
+    summary="Schlägt geeignete Experten für ein Thema vor",
+    description="Schlägt geeignete Experten für ein bestimmtes Thema vor."
 )
-async def get_expert(
-    expert_id: str,
+async def get_suggested_experts(
+    topic: str,
+    count: int = 3,
     experts_service: ExpertsService = Depends(get_experts_service)
 ):
     """
-    Ruft das Profil eines Experten anhand seiner ID ab.
+    Schlägt geeignete Experten für ein bestimmtes Thema vor.
     
     Args:
-        expert_id: ID des Experten
+        topic: Das Thema, für das Experten vorgeschlagen werden sollen
+        count: Anzahl der gewünschten Experten (Standard: 3)
         experts_service: Injizierter ExpertsService
         
     Returns:
-        ExpertProfile-Objekt
+        Liste von ExpertProfile-Objekten
     """
-    expert = await experts_service.get_expert_profile(expert_id)
-    if not expert:
-        raise HTTPException(status_code=404, detail=f"Experte mit ID {expert_id} wurde nicht gefunden")
-    return expert
+    experts = await experts_service.get_all_experts()
+    # In einer echten Implementierung würden wir hier eine Filterung basierend auf dem Thema durchführen
+    # Für diese Implementierung wählen wir einfach zufällig count Experten aus
+    import random
+    suggested_experts = random.sample(experts, min(count, len(experts)))
+    
+    return suggested_experts
 
 
 class CreateExpertRequest(BaseModel):

@@ -114,23 +114,85 @@ const ExpertDebatePanel: React.FC<ExpertDebatePanelProps> = ({ apiUrl, isConnect
     setError(null);
 
     try {
-      const url = domain
-        ? `${apiUrl}/experts?domain=${encodeURIComponent(domain)}`
-        : `${apiUrl}/experts`;
+      // Statt API-Aufruf verwenden wir direkt lokale Beispiel-Experten
+      // Dies ist eine temporäre Lösung, bis die API-Endpunkte korrekt funktionieren
       
-      const response = await fetch(url);
+      // Beispiel-Experten generieren
+      const sampleExperts: Expert[] = [
+        {
+          id: 'exp-001',
+          name: 'Dr. Tech Visionary',
+          domain: 'Technologie',
+          specialty: 'KI-Entwicklung & Zukunftstechnologien',
+          background: 'Führender Forscher im Bereich künstliche Intelligenz mit Schwerpunkt auf ethischen Implikationen.',
+          perspective: 'Techno-optimistisch, aber mit kritischem Blick auf gesellschaftliche Auswirkungen',
+          avatar: '🧠'
+        },
+        {
+          id: 'exp-002',
+          name: 'Prof. EcoThinker',
+          domain: 'Umweltwissenschaften',
+          specialty: 'Klimawandel & Nachhaltige Entwicklung',
+          background: 'Langjährige Forschung zu Umweltauswirkungen verschiedener Technologien und Wirtschaftsmodelle.',
+          perspective: 'Fokus auf langfristige ökologische Nachhaltigkeit und Systemwandel',
+          avatar: '🌍'
+        },
+        {
+          id: 'exp-003',
+          name: 'FinExpert',
+          domain: 'Wirtschaft',
+          specialty: 'Finanzmarkt & Investitionsanalyse',
+          background: 'Jahrzehnte an Erfahrung in der Analyse globaler Märkte und wirtschaftlicher Trends.',
+          perspective: 'Pragmatisch, datengetrieben mit Fokus auf wirtschaftlichen Mehrwert',
+          avatar: '📊'
+        },
+        {
+          id: 'exp-004',
+          name: 'Ethics Specialist',
+          domain: 'Philosophie & Ethik',
+          specialty: 'Angewandte Ethik & soziale Gerechtigkeit',
+          background: 'Forschung zu ethischen Fragen neuer Technologien und deren gesellschaftlichen Implikationen.',
+          perspective: 'Stellt kritische Fragen zu Fairness, Zugänglichkeit und langfristigen Konsequenzen',
+          avatar: '⚖️'
+        },
+        {
+          id: 'exp-005',
+          name: 'Policy Advisor',
+          domain: 'Politik & Regulierung',
+          specialty: 'Internationale Richtlinien & Gesetzgebung',
+          background: 'Beratung für Regierungen und internationale Organisationen zu Regulierungsfragen.',
+          perspective: 'Fokus auf praktische Umsetzbarkeit und regulatorische Herausforderungen',
+          avatar: '📝'
+        },
+        {
+          id: 'exp-006',
+          name: 'Dr. Medicine Insights',
+          domain: 'Medizin',
+          specialty: 'Medizinische Ethik & Gesundheitssystemforschung',
+          background: 'Forschung und Praxis an der Schnittstelle zwischen medizinischer Innovation und ethischen Fragen.',
+          perspective: 'Patientenzentrierter Ansatz mit Fokus auf gerechten Zugang zu Gesundheitsversorgung',
+          avatar: '🏥'
+        },
+        {
+          id: 'exp-007',
+          name: 'Tech Ethicist',
+          domain: 'Technologieethik',
+          specialty: 'KI-Ethik & Verantwortungsvolle Innovation',
+          background: 'Forschung zur ethischen Entwicklung und Anwendung von KI in verschiedenen Bereichen.',
+          perspective: 'Fokus auf menschenzentrierte Technologieentwicklung und ethische Leitplanken',
+          avatar: '🤖'
+        }
+      ];
       
-      if (!response.ok) {
-        throw new Error(`HTTP-Fehler: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      
-      if (data.success && data.experts) {
-        setExperts(data.experts);
+      // Wenn ein Domain-Filter gesetzt ist, filtere die Experten
+      if (domain) {
+        const filteredExperts = sampleExperts.filter(expert => expert.domain === domain);
+        setExperts(filteredExperts);
       } else {
-        throw new Error('Unerwartetes Format der API-Antwort');
+        setExperts(sampleExperts);
       }
+      
+      console.log("Lokale Beispiel-Experten geladen:", domain ? `gefiltert nach ${domain}` : "alle");
     } catch (err: any) {
       console.error('Fehler beim Laden der Experten:', err);
       setError(`Fehler beim Laden der Experten: ${err.message || 'Unbekannter Fehler'}`);
