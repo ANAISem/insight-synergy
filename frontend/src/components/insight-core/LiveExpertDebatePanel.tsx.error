@@ -160,6 +160,7 @@ const LiveExpertDebatePanel: React.FC<LiveExpertDebatePanelProps> = ({ apiUrl, i
   const [autoScroll, setAutoScroll] = useState(true);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [newMessageCount, setNewMessageCount] = useState(0);
+  // Neue Zustandsvariablen für Pause-Funktion
   // Neue Zustandsvariable für Pause-Funktion
   const [isPaused, setIsPaused] = useState(false);
   // Timer für automatische Diskussionen
@@ -474,6 +475,7 @@ const LiveExpertDebatePanel: React.FC<LiveExpertDebatePanelProps> = ({ apiUrl, i
     setError(null);
     setMessages([]);
     setInsights([]);
+    setIsPaused(false); // Reset der Pause-Funktion beim Start einer neuen Debatte    setIsPaused(false); // Reset der Pause-Funktion beim Start einer neuen Debatte
     setIsPaused(false); // Reset pause state when starting a new debate
 
     try {
@@ -619,6 +621,7 @@ const LiveExpertDebatePanel: React.FC<LiveExpertDebatePanelProps> = ({ apiUrl, i
     // Zurück zur Debattenvorbereitung
     setMessages([]);
     setInsights([]);
+    setIsPaused(false); // Reset der Pause-Funktion beim Start einer neuen Debatte    setIsPaused(false); // Reset der Pause-Funktion beim Start einer neuen Debatte
     setDebateTargets(null);
     setCognitiveAnalysis(null);
     setActiveTab(0);
@@ -651,11 +654,14 @@ const LiveExpertDebatePanel: React.FC<LiveExpertDebatePanelProps> = ({ apiUrl, i
   };
 
   // Experten-Nachricht generieren
+  // Startet die automatisierte Diskussion mit Berücksichtigung der Pause-Funktion
+
+  // Startet die automatisierte Diskussion mit Berücksichtigung der Pause-Funktion
   const generateExpertMessage = async (expert: Expert, isFirstMessage: boolean) => {
     setError(null);
     
     try {
-      console.log(`Versuche, Expertenantwort über API zu generieren: ${apiUrl}/live-expert-debate/message`);
+    try {      console.log(`Versuche, Expertenantwort über API zu generieren: ${apiUrl}/live-expert-debate/message`);
       
       // Vorbereiten der vorherigen Nachrichten für den API-Aufruf
       const previousMessages = messages
@@ -673,408 +679,6 @@ const LiveExpertDebatePanel: React.FC<LiveExpertDebatePanelProps> = ({ apiUrl, i
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          topic,
-          context: context || undefined,
-          expert: {
-            id: expert.id,
-            name: expert.name,
-            domain: expert.domain,
-            specialty: expert.specialty,
-            background: expert.background || '',
-            perspective: expert.perspective || ''
-          },
-          isFirstMessage,
-          previousMessages,
-          userMessage: messages.filter(m => m.expertId === 'user').pop()?.content
-        }),
-        signal: AbortSignal.timeout(20000)
-      });
-
-      if (!response.ok) {
-        console.warn(`API-Fehler: ${response.status} ${response.statusText}`);
-        throw new Error(`HTTP-Fehler: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      console.log("API-Antwort erhalten:", data);
-      
-      if (data.success && data.message) {
-        console.log("Erfolgreiche API-Antwort mit Nachricht:", data.message);
-        
-        // Die generierte Nachricht zum State hinzufügen
-      const newMessage: Message = {
-          id: data.message.id || `msg-${expert.id}-${Date.now()}`,
-        expertId: expert.id,
-        expertName: expert.name,
-        avatar: expert.avatar,
-        content: data.message.content,
-          timestamp: data.message.timestamp || new Date().toISOString(),
-        references: data.message.references || []
-      };
-      
-      setMessages(prev => [...prev, newMessage]);
-      
-      // Faktencheck ausführen, wenn aktiviert
-      if (factCheckingEnabled) {
-        performFactCheck(newMessage);
-      }
-      
-      // Debattenziele aktualisieren
-      updateDebateProgress();
-      
-      // Wenn es nicht die erste Nachricht ist, wähle einen anderen Experten für die nächste Nachricht
-      if (!isFirstMessage && selectedExperts.length > 1) {
-        // Alle Experten finden, die noch nicht zu oft geantwortet haben
-        const eligibleExperts = selectedExperts.filter(e => 
-          e.id !== expert.id && 
-          messages.filter(m => m.expertId === e.id).length < 3
-        );
-        
-        if (eligibleExperts.length > 0) {
-          const nextExpert = eligibleExperts[Math.floor(Math.random() * eligibleExperts.length)];
-          // Die automatisierte Diskussion starten, wenn nicht pausiert
-          handleAutomatedDiscussion(nextExpert, false, 3000 + Math.random() * 2000);
-        }
-      }
-    } catch (err: any) {
-      console.error('Fehler bei der Generierung der Expertenantwort:', err);
-      console.log('Verwende lokale Fallback-Implementierung');
-      
-      // Fallback zur lokalen Implementierung
-      fallbackExpertMessage(expert, isFirstMessage);
-    }
-  };
-  
-  // Fallback-Funktion, wenn API-Anfrage fehlschlägt
-  const fallbackExpertMessage = (expert: Expert, isFirstMessage: boolean) => {
-    // Zeigt dem Benutzer, dass wir zur lokalen Fallback-Lösung wechseln
-    const tempMessageId = `temp-${Date.now()}`;
-    const tempMessage: Message = {
-      id: tempMessageId,
-      expertId: expert.id,
-      expertName: expert.name,
-      avatar: expert.avatar || '👤',
-      content: 'Generiere Antwort...',
-      timestamp: new Date().toISOString(),
-      isLoading: true
-    };
-    
-    setMessages(prevMessages => [...prevMessages, tempMessage]);
-    
-    // Verwende die vorhandene Simulation
-    simulateAIExpertResponse(expert, isFirstMessage);
-  };
-  
-  // Simuliert eine KI-generierte Expertenantwort mit einer verbesserten Fallback-Implementierung
-  const simulateAIExpertResponse = (expert: Expert, isFirstMessage: boolean) => {
-    // Zeige Ladeanimation, um Netzwerkanfrage zu simulieren
-    // Dies gibt dem Benutzer das Gefühl, dass tatsächlich eine KI-Verarbeitung stattfindet
-    const simulatedResponseDelay = 2000 + Math.random() * 3000; // 2-5 Sekunden
-    
-    setTimeout(() => {
-      // Kontext für die Antwortgenerierung zusammenstellen
-      const latestMessages = messages.slice(-5); // Letzten 5 Nachrichten für Kontext
-      const latestUserMessage = messages.filter(m => m.expertId === 'user').pop()?.content;
-      const otherExpertMessages = messages.filter(m => 
-        m.expertId !== 'system' && 
-        m.expertId !== 'user' && 
-        m.expertId !== expert.id
-      );
-      const latestOtherExpertMessage = otherExpertMessages.length > 0 ? 
-        otherExpertMessages[otherExpertMessages.length - 1] : null;
-      
-      // Antwortinhalt basierend auf Kontext und Expertenprofil generieren
-    let content = '';
-      
-    if (isFirstMessage) {
-        // Erste Nachricht des Experten zum Thema
-        content = `Als Experte für ${expert.specialty} möchte ich einige wichtige Perspektiven zum Thema "${topic}" einbringen:\n\n`;
-        content += getThemeSpecificResponse(expert, topic);
-        
-        // Häufig verwendete Einleitungssätze von KI-Modellen simulieren
-        if (Math.random() > 0.5) {
-          content += `\n\nEs ist wichtig zu beachten, dass dieses Thema vielschichtig ist und verschiedene Faktoren berücksichtigt werden müssen.`;
-        }
-      } 
-      else if (latestUserMessage) {
-        // Antwort auf eine Benutzerfrage
-        content = `${generateOpeningPhrase()} ${latestUserMessage} ${generateTransitionPhrase()}\n\n`;
-        content += getThemeSpecificResponse(expert, latestUserMessage);
-        
-        // Abrunden mit einer Schlussfolgerung oder Frage
-        if (Math.random() > 0.7) {
-          content += `\n\nWas denken Sie über diesen Aspekt? Gibt es bestimmte Bereiche, die Sie näher beleuchten möchten?`;
-        }
-      }
-      else if (latestOtherExpertMessage) {
-        // Antwort auf einen anderen Experten
-        content = `${generateAgreementOrDisagreementPhrase()} ${latestOtherExpertMessage.expertName} ${generatePerspectiveTransition()}\n\n`;
-        content += getThemeSpecificResponse(expert, latestOtherExpertMessage.content);
-        
-        // Expertise-spezifische Ergänzung
-        content += `\n\nAus der Perspektive der ${expert.domain} sollten wir auch bedenken, dass ${generateDomainSpecificInsight(expert.domain)}.`;
-      } 
-      else {
-        // Generischer Beitrag zur Debatte
-        content = `Zum Thema "${topic}" möchte ich aus der Perspektive von ${expert.domain} folgende Punkte einbringen:\n\n`;
-        content += getThemeSpecificResponse(expert, topic);
-      }
-      
-      // Finde die temporäre Nachricht und ersetze sie durch die generierte Antwort
-      setMessages(prevMessages => {
-        const updatedMessages = [...prevMessages];
-        const tempMessageIndex = updatedMessages.findIndex(
-          m => m.isLoading && m.expertId === expert.id
-        );
-        
-        if (tempMessageIndex !== -1) {
-          // Ersetze die temporäre Nachricht
-          updatedMessages[tempMessageIndex] = {
-            ...updatedMessages[tempMessageIndex],
-            content: content,
-            isLoading: false,
-            timestamp: new Date().toISOString()
-          };
-        } else {
-          // Falls keine temporäre Nachricht gefunden wurde, füge eine neue hinzu
-          updatedMessages.push({
-            id: `msg-${Date.now()}`,
-      expertId: expert.id,
-      expertName: expert.name,
-            avatar: expert.avatar || '👤',
-            content: content,
-            timestamp: new Date().toISOString()
-          });
-        }
-        
-        return updatedMessages;
-      });
-      
-      // Scrolle zum Ende der Nachrichtenliste
-      if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-      }
-      
-      // Starte nach einer Pause eine Antwort vom nächsten Experten
-      if (selectedExperts.length > 1 && Math.random() > 0.5) {
-        // Wähle einen anderen Experten
-        const otherExperts = selectedExperts.filter(e => e.id !== expert.id);
-        const nextExpert = otherExperts[Math.floor(Math.random() * otherExperts.length)];
-        // Die automatisierte Diskussion starten, wenn nicht pausiert
-        handleAutomatedDiscussion(nextExpert, false, 2000 + Math.random() * 8000);
-      }
-    }, simulatedResponseDelay);
-  };
-  
-  // Hilfsfunktionen für die AI-Simulation
-  const generateOpeningPhrase = () => {
-    const phrases = [
-      "Ihre Frage zu",
-      "Bezüglich Ihrer Nachricht über",
-      "Zu Ihrem Punkt über",
-      "In Bezug auf Ihre Frage zu",
-      "Wenn wir Ihren Gedanken zu",
-      "Ihre Überlegungen zu"
-    ];
-    return phrases[Math.floor(Math.random() * phrases.length)];
-  };
-  
-  const generateTransitionPhrase = () => {
-    const phrases = [
-      "ist ein wichtiger Aspekt, den ich gerne näher beleuchten möchte.",
-      "möchte ich einige differenzierte Überlegungen einbringen.",
-      "lässt sich aus meiner fachlichen Perspektive wie folgt betrachten:",
-      "greift einen zentralen Punkt auf, den ich ergänzen möchte.",
-      "erlaubt mir, einige weitere Aspekte zu beleuchten."
-    ];
-    return phrases[Math.floor(Math.random() * phrases.length)];
-  };
-  
-  const generateAgreementOrDisagreementPhrase = () => {
-    const agreementPhrases = [
-      "Ich stimme",
-      "Ich teile die Sichtweise von",
-      "In Ergänzung zu",
-      "Aufbauend auf dem Punkt von",
-      "In Übereinstimmung mit"
-    ];
-    
-    const disagreementPhrases = [
-      "Während ich die Überlegungen von",
-      "Aus einer anderen Perspektive als",
-      "Im Kontrast zur Darstellung von",
-      "Ich sehe einen anderen Aspekt als",
-      "Ich möchte den Standpunkt von"
-    ];
-    
-    const isAgreement = Math.random() > 0.4; // 60% Wahrscheinlichkeit für Zustimmung
-    const phrases = isAgreement ? agreementPhrases : disagreementPhrases;
-    return phrases[Math.floor(Math.random() * phrases.length)];
-  };
-  
-  const generatePerspectiveTransition = () => {
-    const agreementTransitions = [
-      "und möchte diesen Gedanken noch weiter ausführen.",
-      "zu, würde jedoch gerne noch einen weiteren Aspekt hinzufügen.",
-      "und sehe zusätzlich folgende Implikationen.",
-      "voll und ganz, möchte aber noch auf folgende Punkte hinweisen."
-    ];
-    
-    const disagreementTransitions = [
-      "respektiere, sehe ich die Situation aus einem anderen Blickwinkel.",
-      "nachvollziehen kann, gibt es wichtige gegensätzliche Erkenntnisse zu beachten.",
-      "verstehe, zeigt meine Expertise in diesem Bereich ein differenzierteres Bild.",
-      "zu schätzen weiß, sollten wir auch folgendes bedenken."
-    ];
-    
-    const isAgreement = Math.random() > 0.4; // 60% Wahrscheinlichkeit für Zustimmung
-    const transitions = isAgreement ? agreementTransitions : disagreementTransitions;
-    return transitions[Math.floor(Math.random() * transitions.length)];
-  };
-  
-  const generateDomainSpecificInsight = (domain: string) => {
-    const insights = {
-      "Technologie": [
-        "die technologische Entwicklung einem nicht-linearen Pfad folgt und Prognosen oft die gesellschaftliche Anpassungsfähigkeit unterschätzen",
-        "Skalierbarkeit und Benutzerfreundlichkeit oft wichtiger sind als technische Perfektion",
-        "der Erfolg einer Technologie stark von ihrer Integration in bestehende Systeme abhängt"
-      ],
-      "Umweltwissenschaften": [
-        "ökologische Systeme hochkomplex sind und Eingriffe oft unbeabsichtigte Nebenwirkungen haben können",
-        "Nachhaltigkeitskonzepte immer im Kontext lokaler Ökosysteme betrachtet werden müssen",
-        "langfristiger Umweltschutz und wirtschaftliches Wachstum sich nicht ausschließen müssen"
-      ],
-      "Wirtschaft": [
-        "Marktdynamiken stark von regulatorischen Rahmenbedingungen und geopolitischen Faktoren beeinflusst werden",
-        "erfolgreiche Geschäftsmodelle eine Balance zwischen Innovation und Risikomanagement finden müssen",
-        "wirtschaftliche Prognosen immer unter Berücksichtigung sozialer und politischer Faktoren erfolgen sollten"
-      ],
-      "Philosophie & Ethik": [
-        "ethische Prinzipien kulturell geprägt sind und kontextabhängig betrachtet werden müssen",
-        "technologischer Fortschritt immer auch ethische Fragen aufwirft, die nicht allein durch die Technik selbst gelöst werden können",
-        "die Frage nach Verantwortung in komplexen Systemen zunehmend schwieriger zu beantworten ist"
-      ],
-      "Politik & Regulierung": [
-        "erfolgreiche Regulierung einen ausgewogenen Ansatz zwischen Innovation und Schutz erfordert",
-        "internationale Kooperation für die Bewältigung globaler Herausforderungen unerlässlich ist",
-        "gesellschaftliche Akzeptanz eine wesentliche Voraussetzung für die erfolgreiche Umsetzung von Policies ist"
-      ],
-      "Medizin": [
-        "individuelle Gesundheitsfaktoren und genetische Prädispositionen zunehmend an Bedeutung gewinnen",
-        "Digitalisierung das Potenzial hat, den Zugang zu medizinischer Versorgung grundlegend zu demokratisieren",
-        "psychische Gesundheit als integraler Bestandteil des Gesundheitssystems betrachtet werden muss"
-      ],
-      "Technologieethik": [
-        "ethische Leitplanken für KI-Systeme bereits in der Designphase implementiert werden müssen",
-        "Transparenz und Erklärbarkeit Grundvoraussetzungen für vertrauenswürdige technologische Systeme sind",
-        "die Frage der Datenhoheit und -souveränität zunehmend zu einer gesellschaftlichen Schlüsselfrage wird"
-      ]
-    };
-    
-    // Default für unbekannte Domänen
-    const domainInsights = insights[domain as keyof typeof insights] || [
-      "verschiedene Faktoren in Wechselwirkung stehen und ganzheitlich betrachtet werden müssen",
-      "ein multidisziplinärer Ansatz oft die besten Ergebnisse liefert",
-      "langfristige Perspektiven manchmal kurzfristigen Gewinnen vorgezogen werden sollten"
-    ];
-    
-    return domainInsights[Math.floor(Math.random() * domainInsights.length)];
-  };
-
-  // Faktencheck ausführen
-  const performFactCheck = async (message: Message) => {
-    try {
-      // Faktencheck über API durchführen
-      const response = await fetch(`${apiUrl}/live-expert-debate/fact-check`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messageId: message.id,
-          expertId: message.expertId,
-          content: message.content,
-          topic: topic,
-          context: context || undefined
-        }),
-        signal: AbortSignal.timeout(15000)
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP-Fehler: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      
-      if (data.success && data.factCheck) {
-        // Nachricht mit Faktencheck aktualisieren
-        setMessages(prev => 
-          prev.map(msg => 
-            msg.id === message.id 
-              ? { ...msg, factChecked: true, factCheckResult: data.factCheck } 
-              : msg
-          )
-        );
-      } else {
-        throw new Error('Unerwartetes Format der API-Antwort');
-      }
-    } catch (err: any) {
-      console.error('Fehler beim Faktencheck:', err);
-      // Fallback: Simulierter Faktencheck
-      fallbackFactCheck(message);
-    }
-  };
-  
-  // Fallback für Faktencheck wenn API nicht verfügbar
-  const fallbackFactCheck = (message: Message) => {
-    setTimeout(() => {
-      const factCheckResult: FactCheckResult = {
-        isFactual: Math.random() > 0.3, // 70% Wahrscheinlichkeit, dass die Fakten korrekt sind
-        confidence: Math.random() * 0.4 + 0.6, // Confidence zwischen 0.6 und 1.0
-        sources: [
-          {
-            title: 'Journal of Advanced Research',
-            url: 'https://example.com/research',
-            reliability: 0.92
-          },
-          {
-            title: 'International Policy Institute',
-            url: 'https://example.com/policy',
-            reliability: 0.85
-          }
-        ]
-      };
-      
-      // Bei Faktenproblemen Korrekturen hinzufügen
-      if (!factCheckResult.isFactual) {
-        factCheckResult.corrections = [
-          'Eine genauere Formulierung wäre: Die Studienergebnisse deuten auf einen Zusammenhang hin, beweisen diesen aber nicht endgültig.',
-          'Aktuelle Daten zeigen abweichende Trends in verschiedenen Regionen.'
-        ];
-      }
-      
-      // Nachricht mit Faktencheck aktualisieren
-      setMessages(prev => 
-        prev.map(msg => 
-          msg.id === message.id 
-            ? { ...msg, factChecked: true, factCheckResult } 
-            : msg
-        )
-      );
-    }, 2000); // Verzögerung für realistischen Faktencheck-Prozess
-  };
-
-  // Cognitive Loop für adaptive Gesprächsführung
-  const processCognitiveLoop = async (userInput: string) => {
-    try {
-      // Cognitive Loop über API abfragen
-      const response = await fetch(`${apiUrl}/live-expert-debate/cognitive-analysis`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userInput,
           topic,
           context: context || undefined,
           messageHistory: messages.map(m => ({
@@ -1119,14 +723,14 @@ const LiveExpertDebatePanel: React.FC<LiveExpertDebatePanelProps> = ({ apiUrl, i
         
         setTimeout(() => {
           generateExpertMessage(randomExpert, false);
-        }, 1500);
+    }, 1500);
       } else {
         throw new Error('Unerwartetes Format der API-Antwort');
       }
     } catch (err: any) {
       console.error('Fehler bei der Cognitive Loop-Analyse:', err);
       // Fallback: Statische Cognitive Loop-Simulation
-      fallbackCognitiveLoop(userInput);
+      fallbackCognitiveLoop(userMessage);
     }
   };
   
@@ -1156,9 +760,49 @@ const LiveExpertDebatePanel: React.FC<LiveExpertDebatePanelProps> = ({ apiUrl, i
         setTimeout(() => {
           const randomExpert = selectedExperts[Math.floor(Math.random() * selectedExperts.length)];
           generateExpertMessage(randomExpert, false);
-        }, 1500);
+    }, 1500);
       }
     }, 1000);
+  };
+
+  // Cognitive Loop für die Nutzerinteraktion
+  const processCognitiveLoop = async (userInput: string) => {
+    try {
+      // API für Cognitive Analysis aufrufen
+      const response = await fetch(`${apiUrl}/cognitive-analysis`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          input: userInput,
+          context: context || undefined,
+          messageHistory: messages.map(m => ({
+            id: m.id,
+            expertId: m.expertId,
+            expertName: m.expertName,
+            content: m.content
+          }))
+        }),
+        signal: AbortSignal.timeout(10000)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP-Fehler: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success && data.analysis) {
+        setCognitiveAnalysis(data.analysis);
+      } else {
+        throw new Error('Unerwartetes Format der API-Antwort');
+      }
+    } catch (err: any) {
+      console.error('Fehler bei der Cognitive Loop-Analyse:', err);
+      // Fallback: Statische Cognitive Loop-Simulation
+      fallbackCognitiveLoop(userMessage);
+    }
   };
 
   // Einsicht generieren
@@ -1174,6 +818,7 @@ const LiveExpertDebatePanel: React.FC<LiveExpertDebatePanelProps> = ({ apiUrl, i
           topic,
           context: context || undefined,
           messageHistory: messages.map(m => ({
+            id: m.id,
             expertId: m.expertId,
             expertName: m.expertName,
             content: m.content
@@ -1633,7 +1278,7 @@ Die großen Technologieunternehmen werden weiterhin dominieren, aber es entstehe
                       />
                     </Box>
                     
-                    {messages.map((message) => (
+                    {messages.map((message, index) => (
                       <Box key={message.id} sx={{ mb: 3 }}>
                         <Box sx={{ 
                           display: 'flex', 
