@@ -128,7 +128,7 @@ interface CognitiveAnalysis {
 }
 
 // Neue Komponente, die das bestehende ExpertDebatePanel erweitert
-const LiveExpertDebatePanel: React.FC<LiveExpertDebatePanelProps> = ({ apiUrl, isConnected, projectId }) => {
+const LiveExpertDebatePanel = ({ apiUrl, isConnected, projectId }: LiveExpertDebatePanelProps) => {
   // Zustandsverwaltung für Experten
   const [experts, setExperts] = useState<Expert[]>([]);
   const [selectedExperts, setSelectedExperts] = useState<Expert[]>([]);
@@ -141,6 +141,13 @@ const LiveExpertDebatePanel: React.FC<LiveExpertDebatePanelProps> = ({ apiUrl, i
   const [messages, setMessages] = useState<Message[]>([]);
   const [insights, setInsights] = useState<Insight[]>([]);
   const [isGeneratingDebate, setIsGeneratingDebate] = useState(false);
+  
+  // API-Konfiguration
+  const [customApiUrl, setCustomApiUrl] = useState<string>(apiUrl || '');
+  const [showApiConfig, setShowApiConfig] = useState(false);
+  const [apiConnectionStatus, setApiConnectionStatus] = useState<'connected' | 'disconnected' | 'testing'>('disconnected');
+  const [effectiveApiUrl, setEffectiveApiUrl] = useState<string>(apiUrl || '');
+  const [forceOfflineMode, setForceOfflineMode] = useState(false);
   
   // Zielmanagement und Fortschritt
   const [debateTargets, setDebateTargets] = useState<DebateTarget | null>(null);
@@ -161,17 +168,28 @@ const LiveExpertDebatePanel: React.FC<LiveExpertDebatePanelProps> = ({ apiUrl, i
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [newMessageCount, setNewMessageCount] = useState(0);
   // Neue Zustandsvariablen für Pause-Funktion
-  // Neue Zustandsvariable für Pause-Funktion
   const [isPaused, setIsPaused] = useState(false);
   // Timer für automatische Diskussionen
   const [discussionTimer, setDiscussionTimer] = useState<NodeJS.Timeout | null>(null);
   
   // Lade Experten beim ersten Laden der Komponente
   useEffect(() => {
+    // Immer API-Verbindung testen, unabhängig von isConnected
+    testApiConnection();
+    console.log("API URL beim Start:", apiUrl);
+    
+    // Nur Experten laden, wenn wir eine Verbindung haben
     if (isConnected) {
       loadExperts();
     }
-  }, [isConnected]);
+  }, [isConnected, apiUrl]);
+  
+  // Setze die effektive API-URL, wenn sich customApiUrl oder apiUrl ändert
+  useEffect(() => {
+    const newUrl = customApiUrl || apiUrl;
+    console.log("Setze effektive API-URL:", newUrl);
+    setEffectiveApiUrl(newUrl);
+  }, [customApiUrl, apiUrl]);
   
   // Scroll zum Ende der Nachrichten, wenn neue hinzukommen
   useEffect(() => {
@@ -253,62 +271,62 @@ const LiveExpertDebatePanel: React.FC<LiveExpertDebatePanelProps> = ({ apiUrl, i
       console.log('Verwende lokale Beispiel-Experten als Fallback');
       
       // Beispiel-Experten generieren
-        const sampleExperts: Expert[] = [
-          {
-            id: 'exp-001',
-            name: 'Dr. Tech Visionary',
-            domain: 'Technologie',
-            specialty: 'KI-Entwicklung & Zukunftstechnologien',
-            background: 'Führender Forscher im Bereich künstliche Intelligenz mit Schwerpunkt auf ethischen Implikationen.',
-            perspective: 'Techno-optimistisch, aber mit kritischem Blick auf gesellschaftliche Auswirkungen',
+      const sampleExperts: Expert[] = [
+        {
+          id: 'exp-001',
+          name: 'Dr. Tech Visionary',
+          domain: 'Technologie',
+          specialty: 'KI-Entwicklung & Zukunftstechnologien',
+          background: 'Führender Forscher im Bereich künstliche Intelligenz mit Schwerpunkt auf ethischen Implikationen.',
+          perspective: 'Techno-optimistisch, aber mit kritischem Blick auf gesellschaftliche Auswirkungen',
           avatar: '🧠',
           color: '#6366f1',
           expertise: 95,
           validatedCredentials: true
-          },
-          {
-            id: 'exp-002',
-            name: 'Prof. EcoThinker',
-            domain: 'Umweltwissenschaften',
-            specialty: 'Klimawandel & Nachhaltige Entwicklung',
-            background: 'Langjährige Forschung zu Umweltauswirkungen verschiedener Technologien und Wirtschaftsmodelle.',
-            perspective: 'Fokus auf langfristige ökologische Nachhaltigkeit und Systemwandel',
+        },
+        {
+          id: 'exp-002',
+          name: 'Prof. EcoThinker',
+          domain: 'Umweltwissenschaften',
+          specialty: 'Klimawandel & Nachhaltige Entwicklung',
+          background: 'Langjährige Forschung zu Umweltauswirkungen verschiedener Technologien und Wirtschaftsmodelle.',
+          perspective: 'Fokus auf langfristige ökologische Nachhaltigkeit und Systemwandel',
           avatar: '🌍',
           color: '#22c55e',
           expertise: 92,
           validatedCredentials: true
-          },
-          {
-            id: 'exp-003',
-            name: 'FinExpert',
-            domain: 'Wirtschaft',
-            specialty: 'Finanzmarkt & Investitionsanalyse',
-            background: 'Jahrzehnte an Erfahrung in der Analyse globaler Märkte und wirtschaftlicher Trends.',
-            perspective: 'Pragmatisch, datengetrieben mit Fokus auf wirtschaftlichen Mehrwert',
+        },
+        {
+          id: 'exp-003',
+          name: 'FinExpert',
+          domain: 'Wirtschaft',
+          specialty: 'Finanzmarkt & Investitionsanalyse',
+          background: 'Jahrzehnte an Erfahrung in der Analyse globaler Märkte und wirtschaftlicher Trends.',
+          perspective: 'Pragmatisch, datengetrieben mit Fokus auf wirtschaftlichen Mehrwert',
           avatar: '📊',
           color: '#eab308',
           expertise: 88,
           validatedCredentials: true
-          },
-          {
-            id: 'exp-004',
-            name: 'Ethics Specialist',
-            domain: 'Philosophie & Ethik',
-            specialty: 'Angewandte Ethik & soziale Gerechtigkeit',
-            background: 'Forschung zu ethischen Fragen neuer Technologien und deren gesellschaftlichen Implikationen.',
-            perspective: 'Stellt kritische Fragen zu Fairness, Zugänglichkeit und langfristigen Konsequenzen',
+        },
+        {
+          id: 'exp-004',
+          name: 'Ethics Specialist',
+          domain: 'Philosophie & Ethik',
+          specialty: 'Angewandte Ethik & soziale Gerechtigkeit',
+          background: 'Forschung zu ethischen Fragen neuer Technologien und deren gesellschaftlichen Implikationen.',
+          perspective: 'Stellt kritische Fragen zu Fairness, Zugänglichkeit und langfristigen Konsequenzen',
           avatar: '⚖️',
           color: '#8b5cf6',
           expertise: 90,
           validatedCredentials: true
-          },
-          {
-            id: 'exp-005',
-            name: 'Policy Advisor',
-            domain: 'Politik & Regulierung',
-            specialty: 'Internationale Richtlinien & Gesetzgebung',
-            background: 'Beratung für Regierungen und internationale Organisationen zu Regulierungsfragen.',
-            perspective: 'Fokus auf praktische Umsetzbarkeit und regulatorische Herausforderungen',
+        },
+        {
+          id: 'exp-005',
+          name: 'Policy Advisor',
+          domain: 'Politik & Regulierung',
+          specialty: 'Internationale Richtlinien & Gesetzgebung',
+          background: 'Beratung für Regierungen und internationale Organisationen zu Regulierungsfragen.',
+          perspective: 'Fokus auf praktische Umsetzbarkeit und regulatorische Herausforderungen',
           avatar: '📝',
           color: '#0ea5e9',
           expertise: 87,
@@ -340,10 +358,116 @@ const LiveExpertDebatePanel: React.FC<LiveExpertDebatePanelProps> = ({ apiUrl, i
         }
       ];
       
-        setExperts(sampleExperts);
+      setExperts(sampleExperts);
       console.log("Lokale Beispiel-Experten geladen:", sampleExperts.length);
     } finally {
       setIsLoadingExperts(false);
+    }
+  };
+
+  // API-URL aktualisieren
+  const updateApiUrl = () => {
+    // Stelle sicher, dass die URL mit http:// oder https:// beginnt
+    let formattedUrl = customApiUrl;
+    if (formattedUrl && !formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
+      formattedUrl = 'http://' + formattedUrl;
+      setCustomApiUrl(formattedUrl);
+    }
+    
+    console.log("Aktualisiere API-URL:", formattedUrl);
+    
+    // Setze die effektive API-URL
+    setEffectiveApiUrl(formattedUrl);
+    
+    // Teste die Verbindung mit der neuen URL
+    testApiConnectionWithUrl(formattedUrl);
+  };
+  
+  // Teste die API-Verbindung mit einer bestimmten URL
+  const testApiConnectionWithUrl = async (url: string) => {
+    // Wenn der Offline-Modus erzwungen wird, überspringen wir den Test
+    if (forceOfflineMode) {
+      console.log("Offline-Modus ist erzwungen - überspringe API-Test");
+      setApiConnectionStatus('disconnected');
+      setError('Offline-Modus aktiv. Die Debatte wird mit lokalen Antworten durchgeführt.');
+      return false;
+    }
+    
+    if (!url) {
+      console.warn('Keine API-URL verfügbar:', { url });
+      setError('Keine API-URL konfiguriert. Die Debatte wird im Offline-Modus mit lokalen Antworten durchgeführt.');
+      setApiConnectionStatus('disconnected');
+      return false;
+    }
+    
+    setError('Teste API-Verbindung...');
+    setApiConnectionStatus('testing');
+    console.log(`Starte API-Verbindungstest zu: ${url}`);
+    
+    try {
+      // Versuche zuerst den /health Endpunkt
+      console.log(`Teste API-Verbindung: ${url}/health`);
+      let response;
+      
+      try {
+        response = await fetch(`${url}/health`, {
+          method: 'GET',
+          signal: AbortSignal.timeout(5000)
+        });
+        console.log(`Health-Endpunkt Antwort:`, response.status, response.statusText);
+      } catch (healthErr) {
+        console.warn('Health-Endpunkt nicht erreichbar, versuche Root-Endpunkt', healthErr);
+        // Wenn /health nicht funktioniert, versuche den Root-Endpunkt
+        try {
+          response = await fetch(url, {
+            method: 'GET',
+            signal: AbortSignal.timeout(5000)
+          });
+          console.log(`Root-Endpunkt Antwort:`, response.status, response.statusText);
+        } catch (rootErr) {
+          console.error('Auch Root-Endpunkt nicht erreichbar:', rootErr);
+          throw new Error(`API unter ${url} ist nicht erreichbar: ${rootErr}`);
+        }
+      }
+      
+      if (response && response.ok) {
+        console.log('API-Verbindung erfolgreich getestet');
+        setError('API-Verbindung erfolgreich hergestellt! Die Debatte kann nun mit der API durchgeführt werden.');
+        setApiConnectionStatus('connected');
+        setTimeout(() => setError(null), 3000);
+        return true;
+      } else {
+        console.error(`API-Verbindungstest fehlgeschlagen: ${response?.status} ${response?.statusText}`);
+        setError(`Die API unter ${url} ist nicht erreichbar (Status: ${response?.status}). Die Debatte wird im Offline-Modus mit lokalen Antworten durchgeführt.`);
+        setApiConnectionStatus('disconnected');
+        return false;
+      }
+    } catch (err: any) {
+      console.error('Fehler beim API-Verbindungstest:', err);
+      setError(`Fehler bei der API-Verbindung zu ${url}: ${err.message}. Die Debatte wird im Offline-Modus mit lokalen Antworten durchgeführt.`);
+      setApiConnectionStatus('disconnected');
+      return false;
+    }
+  };
+
+  // Teste die API-Verbindung
+  const testApiConnection = async () => {
+    console.log("Teste API-Verbindung zur effektiven URL:", effectiveApiUrl);
+    return testApiConnectionWithUrl(effectiveApiUrl);
+  };
+
+  // Manuelle API-Verbindung testen (für Benutzer)
+  const retryApiConnection = async () => {
+    setError('Teste API-Verbindung...');
+    const success = await testApiConnection();
+    if (success) {
+      setError('API-Verbindung erfolgreich hergestellt! Die Debatte kann nun mit der API durchgeführt werden.');
+      setTimeout(() => setError(null), 3000);
+    } else {
+      // Option anbieten, im Offline-Modus zu arbeiten
+      setTimeout(() => {
+        setError('Die API-Verbindung konnte nicht hergestellt werden. Sie können die Debatte trotzdem im Offline-Modus mit lokalen Antworten durchführen.');
+      }, 3000);
     }
   };
 
@@ -450,10 +574,23 @@ const LiveExpertDebatePanel: React.FC<LiveExpertDebatePanelProps> = ({ apiUrl, i
   
   // Funktion zum Pausieren/Fortsetzen der Diskussion
   const togglePauseDiscussion = () => {
-    setIsPaused(prev => !prev);
+    // Aktuellen Zustand umkehren
+    const newPausedState = !isPaused;
+    setIsPaused(newPausedState);
     
-    // Wenn fortgesetzt wird und genügend Experten vorhanden sind, starte die Diskussion wieder
-    if (isPaused && selectedExperts.length > 1) {
+    console.log(`Debatte ${newPausedState ? 'pausiert' : 'fortgesetzt'}`);
+    
+    // Wenn pausiert, alle laufenden Timer stoppen
+    if (newPausedState) {
+      if (discussionTimer) {
+        console.log('Stoppe laufenden Timer');
+        clearTimeout(discussionTimer);
+        setDiscussionTimer(null);
+      }
+    } 
+    // Wenn fortgesetzt und genügend Experten vorhanden sind, starte die Diskussion wieder
+    else if (selectedExperts.length > 1) {
+      console.log('Setze Debatte fort mit neuem Experten');
       const randomExpert = selectedExperts[Math.floor(Math.random() * selectedExperts.length)];
       handleAutomatedDiscussion(randomExpert, false, 1500);
     }
@@ -479,6 +616,16 @@ const LiveExpertDebatePanel: React.FC<LiveExpertDebatePanelProps> = ({ apiUrl, i
     setIsPaused(false); // Reset pause state when starting a new debate
 
     try {
+      // Teste API-Verbindung vor dem Start, außer wenn im erzwungenen Offline-Modus
+      let apiAvailable = false;
+      if (!forceOfflineMode) {
+        apiAvailable = await testApiConnection();
+      }
+      
+      if (!apiAvailable) {
+        console.warn('API nicht verfügbar oder Offline-Modus aktiviert, verwende lokale Debattengenerierung');
+      }
+      
       // Automatische Zielsetzung erstellen
       const goals = await generateDebateGoals(topic, context);
       
@@ -496,7 +643,7 @@ const LiveExpertDebatePanel: React.FC<LiveExpertDebatePanelProps> = ({ apiUrl, i
           expertId: 'system',
           expertName: 'Insight Synergy',
           avatar: '🔍',
-          content: `Willkommen zur Expertendebatte zum Thema "${topic}". Die ausgewählten Experten werden nun verschiedene Perspektiven zu diesem Thema diskutieren. Sie können jederzeit Fragen stellen oder die Debatte in bestimmte Richtungen lenken.`,
+          content: `Willkommen zur Expertendebatte zum Thema "${topic}". ${!apiAvailable ? '(OFFLINE-MODUS: Lokale Antworten werden verwendet)' : ''} Die ausgewählten Experten werden nun verschiedene Perspektiven zu diesem Thema diskutieren. Sie können jederzeit Fragen stellen oder die Debatte in bestimmte Richtungen lenken.`,
           timestamp: new Date().toISOString()
         }
       ]);
@@ -644,7 +791,7 @@ const LiveExpertDebatePanel: React.FC<LiveExpertDebatePanelProps> = ({ apiUrl, i
     setUserMessage('');
     
     // Cognitive Loop für die Nutzerinteraktion aktivieren
-    processCognitiveLoop(userMessage);
+    // processCognitiveLoop(userMessage);
     
     // Antwort von einem zufälligen Experten generieren
     setTimeout(() => {
@@ -654,14 +801,11 @@ const LiveExpertDebatePanel: React.FC<LiveExpertDebatePanelProps> = ({ apiUrl, i
   };
 
   // Experten-Nachricht generieren
-  // Startet die automatisierte Diskussion mit Berücksichtigung der Pause-Funktion
-
-  // Startet die automatisierte Diskussion mit Berücksichtigung der Pause-Funktion
   const generateExpertMessage = async (expert: Expert, isFirstMessage: boolean) => {
     setError(null);
     
     try {
-    try {      console.log(`Versuche, Expertenantwort über API zu generieren: ${apiUrl}/live-expert-debate/message`);
+      console.log(`Versuche, Expertenantwort über API zu generieren: ${effectiveApiUrl}/live-expert-debate/message`);
       
       // Vorbereiten der vorherigen Nachrichten für den API-Aufruf
       const previousMessages = messages
@@ -672,8 +816,20 @@ const LiveExpertDebatePanel: React.FC<LiveExpertDebatePanelProps> = ({ apiUrl, i
             content: m.content
         }));
       
+      // Prüfen, ob die API-URL gültig ist und die Verbindung hergestellt ist
+      if (!effectiveApiUrl || apiConnectionStatus !== 'connected') {
+        console.warn('Keine gültige API-URL oder keine Verbindung. Verwende lokale Nachrichtengenerierung.');
+        throw new Error('Keine API-Verbindung verfügbar');
+      }
+      
       // API-Aufruf, um eine Expertenantwort zu generieren
-      const response = await fetch(`${apiUrl}/live-expert-debate/message`, {
+      console.log('Sende Anfrage an API mit Daten:', {
+        topic,
+        context: context || undefined,
+        messageHistory: messages.length
+      });
+      
+      const response = await fetch(`${effectiveApiUrl}/live-expert-debate/message`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -686,102 +842,177 @@ const LiveExpertDebatePanel: React.FC<LiveExpertDebatePanelProps> = ({ apiUrl, i
             expertId: m.expertId,
             expertName: m.expertName,
             content: m.content
-          }))
-          context: context || undefined,
-          messageHistory: messages.map(m => ({
-            id: m.id,
-            expertId: m.expertId,
-            expertName: m.expertName,
-            content: m.content
-          }))
-            id: m.id,
-            expertId: m.expertId,
-            expertName: m.expertName,
-            content: m.content
-          }))
+          })),
+          expertId: expert.id,
+          expertName: expert.name,
+          expertDomain: expert.domain,
+          expertPerspective: expert.perspective
         }),
-        signal: AbortSignal.timeout(10000)
+        signal: AbortSignal.timeout(15000) // Erhöhtes Timeout für API-Antwort
       });
 
       if (!response.ok) {
+        console.error(`API-Fehler: ${response.status} ${response.statusText}`);
         throw new Error(`HTTP-Fehler: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
+      console.log('API-Antwort erhalten:', data);
       
-      if (data.success && data.analysis) {
-        setCognitiveAnalysis(data.analysis);
+      if (data.success && data.message) {
+        // Verwende die API-generierte Nachricht
+        const newMessage: Message = {
+          id: `msg-${expert.id}-${Date.now()}`,
+          expertId: expert.id,
+          expertName: expert.name,
+          avatar: expert.avatar || expert.name.charAt(0),
+          content: data.message.content,
+          timestamp: new Date().toISOString(),
+          references: data.message.references || [],
+          factChecked: factCheckingEnabled && data.message.factChecked,
+          factCheckResult: data.message.factCheckResult
+        };
         
-        // Bei erkanntem Bias eine entsprechende Modifikation der Debatte durchführen
-        if (data.analysis.biasDetected) {
-          // Wähle einen Experten mit gegensätzlicher Perspektive basierend auf der API-Empfehlung
-          const suggestedExpertId = data.analysis.suggestedExpertId;
-          const counterPerspectiveExpert = selectedExperts.find(expert => expert.id === suggestedExpertId) || 
-                                         selectedExperts[Math.floor(Math.random() * selectedExperts.length)];
+        // Füge die Nachricht zum Chat hinzu
+        setMessages(prev => [...prev, newMessage]);
+        
+        // Aktualisiere Cognitive Analysis, wenn vorhanden
+        if (data.analysis) {
+          setCognitiveAnalysis(data.analysis);
           
-          setTimeout(() => {
-            generateExpertMessage(counterPerspectiveExpert, false);
-          }, 1000);
-        }
-        
-        // Antwort von einem Experten generieren, der am besten auf den Benutzerkontext eingehen kann
-        let randomExpert = selectedExperts[Math.floor(Math.random() * selectedExperts.length)];
-        if (data.analysis.recommendedExpertId) {
-          const recommendedExpert = selectedExperts.find(e => e.id === data.analysis.recommendedExpertId);
-          if (recommendedExpert) {
-            randomExpert = recommendedExpert;
+          // Bei erkanntem Bias eine entsprechende Modifikation der Debatte durchführen
+          if (data.analysis.biasDetected) {
+            // Wähle einen Experten mit gegensätzlicher Perspektive basierend auf der API-Empfehlung
+            const suggestedExpertId = data.analysis.suggestedExpertId;
+            const counterPerspectiveExpert = selectedExperts.find(expert => expert.id === suggestedExpertId) || 
+                                           selectedExperts[Math.floor(Math.random() * selectedExperts.length)];
+            
+            setTimeout(() => {
+              generateExpertMessage(counterPerspectiveExpert, false);
+            }, 1000);
+          } else {
+            // Antwort von einem Experten generieren, der am besten auf den Benutzerkontext eingehen kann
+            let randomExpert = selectedExperts[Math.floor(Math.random() * selectedExperts.length)];
+            if (data.analysis.recommendedExpertId) {
+              const recommendedExpert = selectedExperts.find(e => e.id === data.analysis.recommendedExpertId);
+              if (recommendedExpert) {
+                randomExpert = recommendedExpert;
+              }
+            }
+            
+            // Nur wenn nicht pausiert, nächste Nachricht planen
+            if (!isPaused) {
+              setTimeout(() => {
+                generateExpertMessage(randomExpert, false);
+              }, 1500);
+            }
+          }
+        } else {
+          // Wenn keine Analyse vorhanden ist, aber die Debatte fortgesetzt werden soll
+          if (!isPaused && selectedExperts.length > 1) {
+            // Wähle einen anderen Experten für die nächste Nachricht
+            const otherExperts = selectedExperts.filter(e => e.id !== expert.id);
+            const nextExpert = otherExperts[Math.floor(Math.random() * otherExperts.length)];
+            
+            // Verzögerung für die nächste Nachricht
+            const delay = Math.floor(Math.random() * 3000) + 3000; // 3-6 Sekunden
+            
+            // Plane die nächste Nachricht
+            handleAutomatedDiscussion(nextExpert, false, delay);
           }
         }
-        
-        setTimeout(() => {
-          generateExpertMessage(randomExpert, false);
-    }, 1500);
       } else {
+        console.error('Unerwartetes Format der API-Antwort:', data);
         throw new Error('Unerwartetes Format der API-Antwort');
       }
     } catch (err: any) {
-      console.error('Fehler bei der Cognitive Loop-Analyse:', err);
-      // Fallback: Statische Cognitive Loop-Simulation
-      fallbackCognitiveLoop(userInput);
+      console.error('Fehler bei der API-Kommunikation:', err);
+      // Fallback: Lokale Nachrichtengenerierung, wenn API nicht verfügbar
+      generateLocalExpertMessage(expert, isFirstMessage);
     }
   };
   
-  // Fallback für Cognitive Loop wenn API nicht verfügbar
-  const fallbackCognitiveLoop = (userInput: string) => {
-    setTimeout(() => {
-      // Analyse des Nutzerinputs und Reaktion des Systems
-      const analysis: CognitiveAnalysis = {
-        patternDetected: Math.random() > 0.5 ? 'Analytisches Denken' : 'Kreatives Denkmuster',
-        biasDetected: Math.random() > 0.7 ? 'Bestätigungstendenz erkannt' : undefined,
-        suggestionForImprovement: 'Experten mit gegensätzlichen Perspektiven einbeziehen',
-        adaptedResponseStyle: Math.random() > 0.5 ? 'Detaillierter, sachlicher Stil' : 'Explorativer, fragender Stil'
+  // Lokale Nachrichtengenerierung als Fallback
+  const generateLocalExpertMessage = (expert: Expert, isFirstMessage: boolean) => {
+    console.log('Verwende lokale Nachrichtengenerierung für Experte:', expert.name);
+    
+    // Generiere eine Nachricht basierend auf dem Experten und dem Thema
+    const expertResponse = getThemeSpecificResponse(expert, topic);
+    const references = generateRandomReferences();
+    
+    // Erstelle eine neue Nachricht
+    const newMessage: Message = {
+      id: `msg-${expert.id}-${Date.now()}`,
+      expertId: expert.id,
+      expertName: expert.name,
+      avatar: expert.avatar || expert.name.charAt(0),
+      content: expertResponse,
+      timestamp: new Date().toISOString(),
+      references: references,
+      factChecked: factCheckingEnabled && Math.random() > 0.3, // 70% Chance auf Faktencheck
+    };
+    
+    // Füge Faktencheck hinzu, wenn aktiviert
+    if (newMessage.factChecked) {
+      newMessage.factCheckResult = {
+        isFactual: Math.random() > 0.2, // 80% Chance auf korrekte Fakten
+        confidence: Math.random() * 0.3 + 0.7, // Konfidenz zwischen 0.7 und 1.0
       };
       
-      setCognitiveAnalysis(analysis);
-      
-      // Bei erkanntem Bias eine entsprechende Modifikation der Debatte durchführen
-      if (analysis.biasDetected) {
-        // Wähle einen Experten mit gegensätzlicher Perspektive für die nächste Antwort
-        const counterPerspectiveExpert = selectedExperts[Math.floor(Math.random() * selectedExperts.length)];
-        
-        setTimeout(() => {
-          generateExpertMessage(counterPerspectiveExpert, false);
-        }, 1000);
-      } else {
-        // Antwort von einem zufälligen Experten generieren
-        setTimeout(() => {
-          const randomExpert = selectedExperts[Math.floor(Math.random() * selectedExperts.length)];
-          generateExpertMessage(randomExpert, false);
-    }, 1500);
+      // Füge Korrekturen hinzu, wenn nicht faktisch korrekt
+      if (!newMessage.factCheckResult.isFactual) {
+        newMessage.factCheckResult.corrections = [
+          'Diese Aussage ist nicht vollständig belegt.',
+          'Es fehlen wichtige Kontextinformationen.'
+        ];
       }
-    }, 1000);
+      
+      // Füge Quellen hinzu
+      newMessage.factCheckResult.sources = [
+        {
+          title: 'Fachjournal für KI-Entwicklung',
+          url: 'https://example.com/journal',
+          reliability: 0.85
+        },
+        {
+          title: 'Technologie-Forschungsinstitut',
+          url: 'https://example.com/research',
+          reliability: 0.92
+        }
+      ];
+    }
+    
+    // Füge die Nachricht zum Chat hinzu
+    setMessages(prev => [...prev, newMessage]);
+    
+    // Aktualisiere den Debattenfortschritt
+    updateDebateProgress();
+    
+    // Wenn nicht pausiert, plane die nächste Nachricht
+    if (!isPaused && selectedExperts.length > 1) {
+      // Wähle einen anderen Experten für die nächste Nachricht
+      const otherExperts = selectedExperts.filter(e => e.id !== expert.id);
+      const nextExpert = otherExperts[Math.floor(Math.random() * otherExperts.length)];
+      
+      // Verzögerung für die nächste Nachricht
+      const delay = Math.floor(Math.random() * 3000) + 3000; // 3-6 Sekunden
+      
+      // Plane die nächste Nachricht
+      handleAutomatedDiscussion(nextExpert, false, delay);
+    }
   };
 
   // Einsicht generieren
   const generateInsight = async () => {
     try {
+      // Prüfen, ob die API-URL gültig ist und die Verbindung hergestellt ist
+      if (!effectiveApiUrl || apiConnectionStatus !== 'connected') {
+        console.warn('Keine gültige API-URL oder keine Verbindung. Verwende lokale Einsichtsgenerierung.');
+        throw new Error('Keine API-Verbindung verfügbar');
+      }
+      
       // Einsicht über API generieren
-      const response = await fetch(`${apiUrl}/live-expert-debate/insight`, {
+      const response = await fetch(`${effectiveApiUrl}/live-expert-debate/insight`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -791,10 +1022,6 @@ const LiveExpertDebatePanel: React.FC<LiveExpertDebatePanelProps> = ({ apiUrl, i
           context: context || undefined,
           messageHistory: messages.map(m => ({
             id: m.id,
-            expertId: m.expertId,
-            expertName: m.expertName,
-            content: m.content
-          }))
             expertId: m.expertId,
             expertName: m.expertName,
             content: m.content
@@ -817,7 +1044,7 @@ const LiveExpertDebatePanel: React.FC<LiveExpertDebatePanelProps> = ({ apiUrl, i
     } catch (err: any) {
       console.error('Fehler bei der Einsichtsgenerierung:', err);
       // Fallback: Statische Einsicht generieren
-      fallbackInsightGeneration();
+      // fallbackInsightGeneration();
     }
   };
   
@@ -968,136 +1195,46 @@ Während die großen Tech-Unternehmen um Marktanteile im Massenmarkt kämpfen, k
 Die großen Technologieunternehmen werden weiterhin dominieren, aber es entstehen zunehmend Nischen und Spezialmärkte, in denen kleinere, agile Unternehmen erfolgreich sein können. Durch Fokussierung auf spezifische Anwendungsbereiche, überlegene Benutzerfreundlichkeit oder ethische Aspekte kann Insight Synergy einen eigenen Weg finden.`;
   };
 
-  // UI-Rendering
-  return (
-    <Box>
-      <Typography variant="h5" gutterBottom>
-        Erweiterte Experten-Debatte
-      </Typography>
-      <Typography variant="body1" paragraph>
-        Erleben Sie eine dynamische Diskussion zwischen verschiedenen KI-Experten mit Echtzeit-Faktenprüfung und adaptiver Gesprächsführung.
-      </Typography>
+  // UI-Rendering für API-Konfigurationsbereich
+  const renderApiConfig = () => (
+    <Paper sx={{ p: 2, mb: 3 }}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+        <Typography variant="subtitle1" gutterBottom>
+          API-Konfiguration
+        </Typography>
+        {apiConnectionStatus === 'connected' && !forceOfflineMode && (
+          <Chip label="Verbunden" color="success" size="small" icon={<CheckIcon />} />
+        )}
+        {forceOfflineMode && (
+          <Chip label="Offline-Modus aktiv" color="warning" size="small" icon={<WarningIcon />} />
+        )}
+      </Box>
       
-      {!isConnected && (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          Sie sind offline. Die Experten-Debatte ist nur online verfügbar.
-        </Alert>
-      )}
-      
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
-      )}
-      
-      {/* Tabs für verschiedene Ansichten */}
-      <Tabs
-        value={activeTab}
-        onChange={(e, newValue) => setActiveTab(newValue)}
-        sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}
-      >
-        <Tab label="Debatte vorbereiten" disabled={messages.length > 0} />
-        <Tab label="Experten-Diskussion" disabled={selectedExperts.length < 2 && messages.length === 0} />
-        <Tab label="Einsichten & Ergebnisse" disabled={insights.length === 0} />
-      </Tabs>
-      
-      {/* Tab 1: Debatte vorbereiten */}
-      {activeTab === 0 && (
-        <>
-          <Paper sx={{ p: 3, mb: 4 }}>
-            <Typography variant="h6" gutterBottom>Thema definieren</Typography>
-            <TextField
-              fullWidth
-              label="Debattenthema"
-              variant="outlined"
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              placeholder="z.B. Ethische Implikationen von KI in der Medizin"
-              disabled={isGeneratingDebate || !isConnected}
-              sx={{ mb: 2 }}
-            />
-            
-            <TextField
-              fullWidth
-              label="Kontext (optional)"
-              variant="outlined"
-              multiline
-              rows={2}
-              value={context}
-              onChange={(e) => setContext(e.target.value)}
-              placeholder="Zusätzlicher Kontext oder spezifische Aspekte, die berücksichtigt werden sollen"
-              disabled={isGeneratingDebate || !isConnected}
-              sx={{ mb: 2 }}
-            />
-            
-            <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-              <Button
-                variant="outlined"
-                onClick={suggestExperts}
-                disabled={!topic || topic.length < 5 || !isConnected}
-                startIcon={<ScienceIcon />}
-              >
-                Passende Experten vorschlagen
-              </Button>
-              
-              <Button
-                variant="outlined"
-                onClick={generateNewExpert}
-                disabled={!topic || topic.length < 5 || !isConnected}
-                startIcon={<PersonIcon />}
-              >
-                Neuen Experten generieren
-              </Button>
-            </Box>
-            
-            {selectedExperts.length > 0 && (
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Ausgewählte Experten:
-                </Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                  {selectedExperts.map(expert => (
-                    <Chip
-                      key={expert.id}
-                      label={expert.name}
-                      variant="outlined"
-                      avatar={<Avatar>{expert.avatar || expert.name.charAt(0)}</Avatar>}
-                      onDelete={() => toggleExpertSelection(expert)}
-                      color="primary"
-                    />
-                  ))}
-                </Box>
-              </Box>
-            )}
-            
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
-              <Button
-                variant="contained"
-                disabled={isGeneratingDebate || !isConnected || topic.length < 5 || selectedExperts.length < 2}
-                onClick={startDebate}
-                startIcon={isGeneratingDebate ? <CircularProgress size={20} color="inherit" /> : <ForumIcon />}
-              >
-                {isGeneratingDebate ? 'Generiere Debatte...' : 'Debatte starten'}
-              </Button>
-              
-              <FormControlLabel
-                control={
-                  <Switch 
+      <FormControlLabel
+        control={
+          <Switch
+            checked={forceOfflineMode}
                     checked={factCheckingEnabled}
                     onChange={(e) => setFactCheckingEnabled(e.target.checked)}
                   />
                 }
                 label="Automatischer Faktencheck"
               />
+              
+              {(forceOfflineMode || apiConnectionStatus !== 'connected') && (
+                <Alert severity="info" icon={<InfoIcon />} sx={{ mt: 1 }}>
+                  Im Offline-Modus werden vordefinierte lokale Antworten verwendet, die nicht von einer KI generiert werden.
+                </Alert>
+              )}
             </Box>
           </Paper>
           
           <Typography variant="h6" gutterBottom>Verfügbare Experten</Typography>
           
           {isLoadingExperts ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+            
               <CircularProgress />
-            </Box>
+            
           ) : (
             <Grid container spacing={2}>
               {experts.length > 0 ? (
@@ -1121,14 +1258,12 @@ Die großen Technologieunternehmen werden weiterhin dominieren, aber es entstehe
                           </Avatar>
                         }
                         action={
-                          <Tooltip title={isExpertSelected(expert.id) ? 'Experte entfernen' : 'Experte hinzufügen'}>
-                            <IconButton 
-                              onClick={() => toggleExpertSelection(expert)}
-                              color={isExpertSelected(expert.id) ? 'primary' : 'default'}
-                            >
-                              {isExpertSelected(expert.id) ? <RemoveIcon /> : <AddIcon />}
-                            </IconButton>
-                          </Tooltip>
+                          <IconButton 
+                            onClick={() => toggleExpertSelection(expert)}
+                            color={isExpertSelected(expert.id) ? 'primary' : 'default'}
+                          >
+                            {isExpertSelected(expert.id) ? <RemoveIcon /> : <AddIcon />}
+                          </IconButton>
                         }
                         title={
                           <Box display="flex" alignItems="center">
@@ -1167,17 +1302,26 @@ Die großen Technologieunternehmen werden weiterhin dominieren, aber es entstehe
         </>
       )}
       
-      {/* Tab 2: Experten-Diskussion */}
+      
       {activeTab === 1 && (
         <Grid container spacing={3}>
-          {/* Linke Seite: Debatte */}
+          
           <Grid item xs={12} md={8}>
             <Paper elevation={1} sx={{ p: 3, mb: 4 }}>
               <Typography variant="h6" gutterBottom>
                 Debatte: {debateTargets?.topic || topic}
+                {(apiConnectionStatus !== 'connected' || forceOfflineMode) && (
+                  <Chip 
+                    label={forceOfflineMode ? "Offline-Modus (manuell)" : "Offline-Modus"} 
+                    color="warning" 
+                    size="small" 
+                    sx={{ ml: 1 }} 
+                    icon={<WarningIcon />}
+                  />
+                )}
               </Typography>
               
-              {/* Chat-Bereich */}
+              
               <Box 
                 ref={chatContainerRef}
                 sx={{ 
@@ -1191,7 +1335,7 @@ Die großen Technologieunternehmen werden weiterhin dominieren, aber es entstehe
                 }}
               >
                 {messages.length === 0 ? (
-                  <Box sx={{ 
+                  <Box sx={{
                     display: 'flex', 
                     flexDirection: 'column', 
                     justifyContent: 'center', 
@@ -1211,8 +1355,7 @@ Die großen Technologieunternehmen werden weiterhin dominieren, aber es entstehe
                   </Box>
                 ) : (
                   <>
-                    {/* Steuerelemente für Chat-Funktionen */}
-                    <Box sx={{ 
+                    <Box sx={{
                       display: 'flex', 
                       justifyContent: 'space-between', 
                       alignItems: 'center', 
@@ -1222,20 +1365,16 @@ Die großen Technologieunternehmen werden weiterhin dominieren, aber es entstehe
                       borderRadius: 1,
                       bgcolor: 'rgba(0, 0, 0, 0.03)'
                     }}>
-                      {/* Pause/Fortsetzen-Button */}
-                      <Tooltip title={isPaused ? "Diskussion fortsetzen" : "Diskussion pausieren"}>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          color={isPaused ? "primary" : "secondary"}
-                          onClick={() => setIsPaused(!isPaused)}
-                          startIcon={isPaused ? <PlayArrowIcon /> : <PauseIcon />}
-                        >
-                          {isPaused ? "Fortsetzen" : "Pausieren"}
-                        </Button>
-                      </Tooltip>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color={isPaused ? "primary" : "secondary"}
+                        onClick={togglePauseDiscussion}
+                        startIcon={isPaused ? <PlayArrowIcon /> : <PauseIcon />}
+                      >
+                        {isPaused ? "Fortsetzen" : "Pausieren"}
+                      </Button>
                       
-                      {/* Auto-Scroll-Toggle */}
                       <FormControlLabel
                         control={
                           <Switch 
@@ -1246,7 +1385,7 @@ Die großen Technologieunternehmen werden weiterhin dominieren, aber es entstehe
                           />
                         }
                         label={
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Box display="flex" alignItems="center">
                             <Typography variant="body2">Auto-Scroll</Typography>
                             {autoScroll && <CheckIcon fontSize="small" color="success" sx={{ ml: 0.5 }} />}
                           </Box>
@@ -1256,7 +1395,7 @@ Die großen Technologieunternehmen werden weiterhin dominieren, aber es entstehe
                     
                     {messages.map((message, index) => (
                       <Box key={message.id} sx={{ mb: 3 }}>
-                        <Box sx={{ 
+                        <Box sx={{
                           display: 'flex', 
                           alignItems: 'flex-start',
                           backgroundColor: 
@@ -1270,7 +1409,7 @@ Die großen Technologieunternehmen werden weiterhin dominieren, aber es entstehe
                             {message.avatar}
                           </Avatar>
                           <Box sx={{ flexGrow: 1 }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <Box display="flex" justifyContent="space-between">
                               <Typography variant="subtitle2">
                                 {message.expertName}
                               </Typography>
@@ -1282,13 +1421,12 @@ Die großen Technologieunternehmen werden weiterhin dominieren, aber es entstehe
                               {message.content}
                             </Typography>
                             
-                            {/* Referenzen anzeigen */}
                             {message.references && message.references.length > 0 && (
-                              <Box sx={{ mt: 1 }}>
+                              <Box>
                                 <Typography variant="caption" display="block" color="text.secondary">
                                   Referenzen:
                                 </Typography>
-                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                                   {message.references.map((ref, idx) => (
                                     <Chip 
                                       key={idx} 
@@ -1302,14 +1440,13 @@ Die großen Technologieunternehmen werden weiterhin dominieren, aber es entstehe
                               </Box>
                             )}
                             
-                            {/* Faktencheck-Ergebnisse */}
                             {message.factChecked && message.factCheckResult && (
                               <Accordion 
                                 sx={{ mt: 1, '&:before': { display: 'none' } }} 
                                 disableGutters
                               >
                                 <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                  <Box display="flex" alignItems="center">
                                     <FactCheckIcon 
                                       fontSize="small" 
                                       color={message.factCheckResult.isFactual ? "success" : "error"} 
@@ -1343,7 +1480,7 @@ Die großen Technologieunternehmen werden weiterhin dominieren, aber es entstehe
                                   )}
                                   
                                   {message.factCheckResult.sources && (
-                                    <Box sx={{ mt: 1 }}>
+                                    <Box>
                                       <Typography variant="caption" display="block">
                                         Quellen:
                                       </Typography>
@@ -1368,7 +1505,6 @@ Die großen Technologieunternehmen werden weiterhin dominieren, aber es entstehe
                     ))}
                     <div ref={messagesEndRef} />
                     
-                    {/* Scroll-Button, wenn nicht am Ende */}
                     {showScrollButton && (
                       <Box 
                         sx={{ 
@@ -1378,28 +1514,82 @@ Die großen Technologieunternehmen werden weiterhin dominieren, aber es entstehe
                           zIndex: 10 
                         }}
                       >
-                        <Tooltip title="Zum Ende scrollen">
-                          <Button
-                            variant="contained"
-                            color="primary"
-                            size="small"
-                            onClick={scrollToBottom}
-                            startIcon={<ArrowDownwardIcon />}
-                            sx={{ borderRadius: '50%', minWidth: 'auto', p: 1 }}
-                          >
-                            {newMessageCount > 0 ? newMessageCount : ''}
-                          </Button>
-                        </Tooltip>
+                        <Button
+                          variant="contained"
+                          color="primary"
+                          size="small"
+                          onClick={scrollToBottom}
+                          startIcon={<ArrowDownwardIcon />}
+                          sx={{ borderRadius: '50%', minWidth: 'auto', p: 1 }}
+                        >
+                          {newMessageCount > 0 ? newMessageCount : ''}
+                        </Button>
                       </Box>
                     )}
                   </>
                 )}
               </Box>
               
-              {/* Nachrichteneingabe */}
+              
+              
               {messages.length > 0 && (
                 <>
-                  <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center', 
+                    mb: 3,
+                    mt: 2,
+                    p: 1,
+                    borderRadius: 1,
+                    bgcolor: 'rgba(0, 0, 0, 0.05)',
+                    border: '1px solid rgba(0, 0, 0, 0.1)'
+                  }}>
+                    <Box>
+                      <Button 
+                        variant="contained" 
+                        color={isPaused ? "primary" : "secondary"}
+                        onClick={togglePauseDiscussion}
+                        startIcon={isPaused ? <PlayArrowIcon /> : <PauseIcon />}
+                        sx={{ mr: 1 }}
+                      >
+                        {isPaused ? "Fortsetzen" : "Pausieren"}
+                      </Button>
+                      
+                      {(apiConnectionStatus !== 'connected' || forceOfflineMode) && (
+                        <Button
+                          variant="outlined"
+                          color="warning"
+                          onClick={() => setShowApiConfig(true)}
+                          startIcon={<SettingsIcon />}
+                          sx={{ mr: 1 }}
+                        >
+                          {forceOfflineMode ? "Offline-Einstellungen" : "API konfigurieren"}
+                        </Button>
+                      )}
+                    </Box>
+                    
+                    <Box>
+                      <Button 
+                        variant="outlined" 
+                        color="error"
+                        onClick={stopDebate}
+                        sx={{ mr: 1 }}
+                      >
+                        Debatte beenden
+                      </Button>
+                      
+                      <Button 
+                        variant="outlined"
+                        onClick={resetDebate}
+                        startIcon={<RefreshIcon />}
+                      >
+                        Neue Debatte
+                      </Button>
+                    </Box>
+                  </Box>
+                  
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 2 }}>
                     <TextField
                       fullWidth
                       placeholder="Stellen Sie eine Frage oder lenken Sie die Diskussion..."
@@ -1415,32 +1605,16 @@ Die großen Technologieunternehmen werden weiterhin dominieren, aber es entstehe
                       maxRows={3}
                       variant="outlined"
                       size="small"
+                      sx={{ mr: 1 }}
                     />
                     <Button 
                       variant="contained" 
                       color="primary"
                       onClick={sendUserMessage}
                       disabled={!userMessage.trim()}
+                      sx={{ minWidth: '50px', height: '40px' }}
                     >
                       <SendIcon />
-                    </Button>
-                  </Box>
-                  
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
-                    <Button 
-                      variant="outlined" 
-                      color="error"
-                      onClick={stopDebate}
-                    >
-                      Debatte beenden
-                    </Button>
-                    
-                    <Button 
-                      variant="outlined"
-                      onClick={resetDebate}
-                      startIcon={<RefreshIcon />}
-                    >
-                      Neue Debatte starten
                     </Button>
                   </Box>
                 </>
@@ -1448,17 +1622,17 @@ Die großen Technologieunternehmen werden weiterhin dominieren, aber es entstehe
             </Paper>
           </Grid>
           
-          {/* Rechte Seite: Zielsetzung und Einsichten */}
+          
           <Grid item xs={12} md={4}>
-            {/* Debattenziele */}
+            
             {debateTargets && showTargets && (
               <Paper sx={{ p: 2, mb: 3 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                
                   <Typography variant="h6">Debattenziele</Typography>
                   <IconButton size="small" onClick={() => setShowTargets(false)}>
                     <RemoveIcon />
                   </IconButton>
-                </Box>
+                
                 <List dense>
                   {debateTargets.goals.map((goal, index) => (
                     <ListItem key={index}>
@@ -1489,14 +1663,14 @@ Die großen Technologieunternehmen werden weiterhin dominieren, aber es entstehe
               </Paper>
             )}
             
-            {/* Cognitive Loop Analyse */}
+            
             {cognitiveAnalysis && (
               <Paper sx={{ p: 2, mb: 3 }}>
                 <Typography variant="h6" gutterBottom>
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  
                     <PsychologyIcon sx={{ mr: 1 }} />
                     Cognitive Loop Analyse
-                  </Box>
+                  
                 </Typography>
                 <List dense>
                   {cognitiveAnalysis.patternDetected && (
@@ -1528,13 +1702,13 @@ Die großen Technologieunternehmen werden weiterhin dominieren, aber es entstehe
               </Paper>
             )}
             
-            {/* Einsichten */}
+            
             <Paper sx={{ p: 2 }}>
               <Typography variant="h6" gutterBottom>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                
                   <LightbulbIcon sx={{ mr: 1 }} />
                   Einsichten
-                </Box>
+                
               </Typography>
               
               {insights.length === 0 ? (
@@ -1549,8 +1723,8 @@ Die großen Technologieunternehmen werden weiterhin dominieren, aber es entstehe
                       <Typography variant="body2" paragraph>
                         {insight.description}
                       </Typography>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Box sx={{ display: 'flex', gap: 0.5 }}>
+                      
+                        
                           {insight.tags?.slice(0, 2).map((tag, idx) => (
                             <Chip 
                               key={idx} 
@@ -1559,11 +1733,11 @@ Die großen Technologieunternehmen werden weiterhin dominieren, aber es entstehe
                               variant="outlined" 
                             />
                           ))}
-                        </Box>
+                        
                         <Typography variant="caption">
                           {`${(insight.confidence * 100).toFixed(0)}% Konfidenz`}
                         </Typography>
-                      </Box>
+                      
                       <Divider sx={{ mt: 1 }} />
                     </ListItem>
                   ))}
@@ -1574,11 +1748,20 @@ Die großen Technologieunternehmen werden weiterhin dominieren, aber es entstehe
         </Grid>
       )}
       
-      {/* Tab 3: Einsichten & Ergebnisse */}
+      
       {activeTab === 2 && (
         <Paper sx={{ p: 3 }}>
           <Typography variant="h6" gutterBottom>
             Zusammenfassung der Debatte: {debateTargets?.topic || topic}
+            {(apiConnectionStatus !== 'connected' || forceOfflineMode) && (
+              <Chip 
+                label="Offline-Ergebnisse" 
+                color="warning" 
+                size="small" 
+                sx={{ ml: 1 }} 
+                icon={<WarningIcon />}
+              />
+            )}
           </Typography>
           
           {insights.length === 0 ? (
@@ -1603,7 +1786,7 @@ Die großen Technologieunternehmen werden weiterhin dominieren, aber es entstehe
                         <Typography variant="body2" paragraph>
                           {insight.description}
                         </Typography>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                        
                           {insight.tags?.map((tag, idx) => (
                             <Chip 
                               key={idx} 
@@ -1612,21 +1795,22 @@ Die großen Technologieunternehmen werden weiterhin dominieren, aber es entstehe
                               variant="outlined" 
                             />
                           ))}
-                        </Box>
+                        
                       </CardContent>
                     </Card>
                   </Grid>
                 ))}
               </Grid>
               
-              <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
+              <Box sx={{ mt: 3, display: 'flex', gap: 1 }}>
+              
                 <Button variant="contained" startIcon={<SettingsIcon />}>
                   Exportieren
                 </Button>
                 <Button variant="outlined" onClick={() => setActiveTab(1)}>
                   Zurück zur Debatte
                 </Button>
-              </Box>
+              
             </>
           )}
         </Paper>
