@@ -1,59 +1,63 @@
-Optimieren wir den gegebenen Code weiter, um Effizienz und Lesbarkeit zu verbessern. Wir sorgen dafür, die JSON-Daten ordnungsgemäß zu validieren, eine durchgängige Fehlerbehandlung bereitzustellen und die Datenbank korrekt zu initialisieren. Außerdem nutzen wir sichere Methoden zur Passwortspeicherung.
+Here is the optimized code incorporating the suggested improvements. These changes improve efficiency, readability, and security, and ensure the correct handling of JSON requests:
 
 ```python
 from flask import Flask, request, jsonify
-from models import db, User
+from flask_restful import Resource, Api
 from werkzeug.security import generate_password_hash
+from uuid import uuid4
+from flask_cors import CORS
 
-def create_app():
-    app = Flask(__name__)
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite3'
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app = Flask(__name__)
+api = Api(app)
 
-    db.init_app(app)
+# Allow cross-origin requests for all domains (set restrictive policies in production)
+CORS(app)
 
-    @app.before_first_request
-    def create_tables():
-        db.create_all()
+# Dictionary to temporarily store users (replace with a secure database in production)
+users = {}
 
-    @app.route('/register', methods=['POST'])
-    def register():
+class Register(Resource):
+    def post(self):
+        # Ensure the request's Content-Type is application/json
+        if request.content_type != 'application/json':
+            return {'message': 'Content-Type must be application/json.'}, 400
+
         data = request.get_json()
 
-        if not data:
-            return jsonify({"error": "No input data provided"}), 400
+        if data is None:
+            return {'message': 'Invalid JSON body.'}, 400
+        
+        # Required fields for user registration
+        username = data.get('username')
+        password = data.get('password')
 
-        required_fields = ['username', 'email', 'password']
-        if not all(field in data for field in required_fields):
-            return jsonify({"error": "Missing username, email, or password"}), 400
+        if not username or not password:
+            return {'message': 'Both username and password are required.'}, 400
 
-        username = data['username']
-        email = data['email']
-        password = data['password']
+        # Check if user already exists
+        if username in users:
+            return {'message': 'User already exists.'}, 409
 
-        if User.query.filter((User.username == username) | (User.email == email)).first():
-            return jsonify({"error": "User with that username or email already exists"}), 400
-
+        # Create and store user with a unique user ID and a hashed password
+        user_id = str(uuid4())
         hashed_password = generate_password_hash(password)
-        new_user = User(username=username, email=email, password=hashed_password)
+        users[username] = {
+            'id': user_id,
+            'username': username,
+            'password': hashed_password
+        }
 
-        try:
-            db.session.add(new_user)
-            db.session.commit()
-            return jsonify({"message": "User registered successfully"}), 201
-        except Exception as e:
-            db.session.rollback()
-            return jsonify({"error": "An error occurred: " + str(e)}), 500
+        return {'message': 'User registered successfully.', 'user_id': user_id}, 201
 
-    return app
-
-app = create_app()
+api.add_resource(Register, '/register')
 
 if __name__ == '__main__':
     app.run(debug=True)
 ```
 
-### Verbesserungen und Änderungen:
-1. **Einheitliche Passwort-Hashing-Methode:** Die Verwendung von `generate_password_hash` speichert Passwörter sicherer.
-2. **Umfassendere Fehlerbehandlung:** Rollback der Sitzung bei Fehlern während des Datenbankzugriffs, um inkonsistente Zustände zu vermeiden.
-3. **Einheitliche Initialisierung mit `create
+### Key Improvements
+1. **JSON Content-Type Check:** Added strict enforcement of the `application/json` content type head.
+2. **UUID Import:** Directly imported `uuid4` from the `uuid` module for simplicity.
+3. **CORS Setup:** Enabled CORS using `flask_cors`. In a production environment, you'll want to restrict the origins allowed.
+4. **Variable Handling:** Utilized `dict.get()` method for handling optional dictionary keys and simplified ID generation with `uuid4`.
+5. **Response Codes and Messages:** Ensured consistent and appropriate HTTP status codes and
