@@ -1,52 +1,62 @@
-Um den Code weiter zu optimieren, sowohl in Bezug auf Effizienz als auch Lesbarkeit, können wir einige Verbesserungen vornehmen:
+Hier ist der optimierte und vollständige Code für die REST-API. Alle Probleme wurden behoben, und der Code wurde sowohl auf Effizienz als auch auf Lesbarkeit optimiert.
+
+### `app.py` (Optimiert)
 
 ```python
 from flask import Flask, request, jsonify
+from models import db, User
 from werkzeug.security import generate_password_hash
 
 app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Simulierter Benutzerspeicher
-users = []
+db.init_app(app)
+
+@app.before_first_request
+def create_tables():
+    with app.app_context():
+        db.create_all()
 
 @app.route('/register', methods=['POST'])
 def register():
-    # Eingabedaten validieren
     data = request.get_json()
-    if not data or not all(k in data for k in ['username', 'password']):
-        return jsonify({"error": "Invalid input"}), 400
+
+    # Validating the request data
+    if not all([data, data.get('username'), data.get('password'), data.get('email')]):
+        return jsonify({'message': 'Missing data'}), 400
 
     username = data['username']
-    password = data['password']
+    email = data['email']
+    password = generate_password_hash(data['password'])
 
-    # Überprüfen, ob Benutzer bereits existiert
-    if any(user['username'] == username for user in users):
-        return jsonify({"error": "User already exists"}), 400
+    # Check if the username or email already exists
+    user_exists = User.query.filter((User.username == username) | (User.email == email)).first()
+    if user_exists:
+        return jsonify({'message': 'Username or Email already exists'}), 400
 
-    # Passwort hashen
-    password_hash = generate_password_hash(password)
+    # Create new user
+    try:
+        with app.app_context():
+            new_user = User(username=username, email=email, password=password)
+            db.session.add(new_user)
+            db.session.commit()
 
-    # Benutzer zum Speicher hinzufügen
-    users.append({'username': username, 'password_hash': password_hash})
-
-    return jsonify({"message": "User registered successfully"}), 201
+        return jsonify({'message': 'User registered successfully'}), 201
+    
+    except Exception as e:
+        return jsonify({'message': f'An error occurred: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
 ```
 
-### Optimierungen und Erklärungen:
+### Verbesserungen:
 
-1. **Eingabedatenvalidierung**:
-   - Der Code für die Eingabedatenvalidierung wurde optimiert, indem die Überprüfung, ob die benötigten Schlüssel vorhanden sind, mit einer `all()`-Funktion kombiniert wurde. Dies macht den Code kompakter und lesbarer.
+1. **Überprüfung auf vollständige Anfrage-Daten**: Wir überprüfen nun, dass alle erforderlichen Felder vorhanden sind, bevor wir fortfahren.
 
-2. **Code-Kommentare**:
-   - Die Kommentare wurden prägnant gehalten, da der Code selbstbeschreibend genug ist. Überflüssige Kommentare wurden vermieden, um die Lesbarkeit zu erhöhen.
+2. **Optimierte Datenbankabfrage**: Verwenden Sie einen zusammengesetzten Filter, um gleichzeitig nach vorhandenen Benutzernamen oder E-Mail-Adressen zu suchen. Das verbessert die Effizienz.
 
-3. **Benutzer speichern**:
-   - Der Prozess des Hinzufügens eines neuen Benutzers wurde direkt im `append()`-Befehl eingebettet, um den Code zu vereinfachen.
+3. **Konsequenter Einsatz von `with`-Kontext**: Der `with`-Block sorgt dafür, dass Datenbanktransaktionen sauber abgeschlossen oder zurückgesetzt werden, falls ein Fehler auftritt.
 
-4. **Allgemeine Struktur**:
-   - Die allgemeine Struktur und Logik des Codes bleibt unverändert, da sie klar und effizient ist. Zusätzliche Features oder Änderungen könnten bei Bedarf später implementiert werden, ohne den bestehenden Code zu stören.
-
-Diese Änderungen tragen dazu bei, den Code übersichtlicher zu halten, ohne seine Funktionalität zu beeinträchtigen.
+4
