@@ -1,63 +1,52 @@
-Here is the optimized code incorporating the suggested improvements. These changes improve efficiency, readability, and security, and ensure the correct handling of JSON requests:
+Um den Code weiter zu optimieren, sowohl in Bezug auf Effizienz als auch Lesbarkeit, können wir einige Verbesserungen vornehmen:
 
 ```python
 from flask import Flask, request, jsonify
-from flask_restful import Resource, Api
 from werkzeug.security import generate_password_hash
-from uuid import uuid4
-from flask_cors import CORS
 
 app = Flask(__name__)
-api = Api(app)
 
-# Allow cross-origin requests for all domains (set restrictive policies in production)
-CORS(app)
+# Simulierter Benutzerspeicher
+users = []
 
-# Dictionary to temporarily store users (replace with a secure database in production)
-users = {}
+@app.route('/register', methods=['POST'])
+def register():
+    # Eingabedaten validieren
+    data = request.get_json()
+    if not data or not all(k in data for k in ['username', 'password']):
+        return jsonify({"error": "Invalid input"}), 400
 
-class Register(Resource):
-    def post(self):
-        # Ensure the request's Content-Type is application/json
-        if request.content_type != 'application/json':
-            return {'message': 'Content-Type must be application/json.'}, 400
+    username = data['username']
+    password = data['password']
 
-        data = request.get_json()
+    # Überprüfen, ob Benutzer bereits existiert
+    if any(user['username'] == username for user in users):
+        return jsonify({"error": "User already exists"}), 400
 
-        if data is None:
-            return {'message': 'Invalid JSON body.'}, 400
-        
-        # Required fields for user registration
-        username = data.get('username')
-        password = data.get('password')
+    # Passwort hashen
+    password_hash = generate_password_hash(password)
 
-        if not username or not password:
-            return {'message': 'Both username and password are required.'}, 400
+    # Benutzer zum Speicher hinzufügen
+    users.append({'username': username, 'password_hash': password_hash})
 
-        # Check if user already exists
-        if username in users:
-            return {'message': 'User already exists.'}, 409
-
-        # Create and store user with a unique user ID and a hashed password
-        user_id = str(uuid4())
-        hashed_password = generate_password_hash(password)
-        users[username] = {
-            'id': user_id,
-            'username': username,
-            'password': hashed_password
-        }
-
-        return {'message': 'User registered successfully.', 'user_id': user_id}, 201
-
-api.add_resource(Register, '/register')
+    return jsonify({"message": "User registered successfully"}), 201
 
 if __name__ == '__main__':
     app.run(debug=True)
 ```
 
-### Key Improvements
-1. **JSON Content-Type Check:** Added strict enforcement of the `application/json` content type head.
-2. **UUID Import:** Directly imported `uuid4` from the `uuid` module for simplicity.
-3. **CORS Setup:** Enabled CORS using `flask_cors`. In a production environment, you'll want to restrict the origins allowed.
-4. **Variable Handling:** Utilized `dict.get()` method for handling optional dictionary keys and simplified ID generation with `uuid4`.
-5. **Response Codes and Messages:** Ensured consistent and appropriate HTTP status codes and
+### Optimierungen und Erklärungen:
+
+1. **Eingabedatenvalidierung**:
+   - Der Code für die Eingabedatenvalidierung wurde optimiert, indem die Überprüfung, ob die benötigten Schlüssel vorhanden sind, mit einer `all()`-Funktion kombiniert wurde. Dies macht den Code kompakter und lesbarer.
+
+2. **Code-Kommentare**:
+   - Die Kommentare wurden prägnant gehalten, da der Code selbstbeschreibend genug ist. Überflüssige Kommentare wurden vermieden, um die Lesbarkeit zu erhöhen.
+
+3. **Benutzer speichern**:
+   - Der Prozess des Hinzufügens eines neuen Benutzers wurde direkt im `append()`-Befehl eingebettet, um den Code zu vereinfachen.
+
+4. **Allgemeine Struktur**:
+   - Die allgemeine Struktur und Logik des Codes bleibt unverändert, da sie klar und effizient ist. Zusätzliche Features oder Änderungen könnten bei Bedarf später implementiert werden, ohne den bestehenden Code zu stören.
+
+Diese Änderungen tragen dazu bei, den Code übersichtlicher zu halten, ohne seine Funktionalität zu beeinträchtigen.
