@@ -118,3 +118,14 @@ backend_log.txt
 *.pem
 *.crt
 **/insight-synergy-*.json 
+
+# Zusätzliche projektspezifische Ausschlüsse
+Auto_Coding_pipeline/
+FIXED.md
+insight_synergy_app/
+src/
+user_registration_api.py.bak
+best-saas-kit/
+
+# Ignoriere spezifische Dokumente und Dateien
+Insight_Synergy_Dokumente/Sarah`s Tag mit Insight Synergy.txt 
