@@ -33,6 +33,7 @@ htmlcov/
 venv/
 .env
 .python-version
+my_venv/
 
 # Flutter/Dart-spezifische Dateien
 .dart_tool/
@@ -84,6 +85,7 @@ ollama_models/manifests/
 *.swp
 *.swo
 .vscode/
+.cursorrules
 
 # Betriebssystem-spezifische Dateien
 .DS_Store
@@ -95,9 +97,24 @@ Desktop.ini
 node_modules/
 npm-debug.log
 yarn-error.log
+package-lock.json
 
 # Docker-spezifische Dateien (falls vorhanden)
 .docker/
 
 # Eingebettetes Git-Repository
-IS-Claude37/ 
+IS-Claude37/
+
+# Projekt-spezifische Dateien
+.process_ids
+server-log.txt
+api-server-log.txt
+frontend_log.txt
+backend_log.txt
+.env.development
+
+# Sensible Dateien
+*.key
+*.pem
+*.crt
+**/insight-synergy-*.json 

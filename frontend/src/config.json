@@ -1,0 +1,5 @@
+{
+  "apiUrl": "http://localhost:8080/api",
+  "webSocketUrl": "http://localhost:5001",
+  "environment": "development"
+} 
